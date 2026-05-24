@@ -1,0 +1,129 @@
+from datetime import datetime, date
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlmodel import Session, select
+from app.database import get_session
+from app.dependencies import get_current_user
+from app.models import Sale, SaleItem, SaleCreate, SaleRead, Product
+
+router = APIRouter(prefix="/sales", tags=["sales"])
+
+
+def _generate_receipt(session: Session, shop_id: int) -> str:
+    today = datetime.utcnow().strftime("%Y%m%d")
+    prefix = f"TRA-{today}-"
+    count = len(session.exec(
+        select(Sale)
+        .where(Sale.receipt_number.startswith(prefix))
+        .where(Sale.shop_id == shop_id)
+    ).all())
+    return f"{prefix}{count + 1:04d}"
+
+
+@router.post("/", response_model=SaleRead, status_code=201)
+def create_sale(
+    data: SaleCreate,
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
+):
+    shop_id = current_user.get("shop_id")
+
+    if data.payment_method not in ("cash", "mpesa"):
+        raise HTTPException(status_code=400, detail="payment_method must be 'cash' or 'mpesa'")
+
+    items_data = []
+    subtotal_total = 0.0
+
+    for item_in in data.items:
+        product = session.get(Product, item_in.product_id)
+        if not product or product.shop_id != shop_id:
+            raise HTTPException(status_code=404, detail=f"Product {item_in.product_id} not found")
+        if not product.active:
+            raise HTTPException(status_code=400, detail=f"Product '{product.name}' is not active")
+
+        subtotal = product.price * item_in.quantity
+        subtotal_total += subtotal
+        items_data.append({
+            "product": product,
+            "quantity": item_in.quantity,
+            "unit_price": product.price,
+            "subtotal": subtotal,
+        })
+
+    discount = max(0.0, data.discount or 0.0)
+    if discount > subtotal_total:
+        raise HTTPException(status_code=400, detail="Discount exceeds order total")
+
+    total = round(subtotal_total - discount, 2)
+
+    if data.payment_method == "cash" and data.amount_paid < total:
+        raise HTTPException(status_code=400, detail="Amount paid is less than total")
+
+    change = round(data.amount_paid - total, 2) if data.payment_method == "cash" else 0.0
+
+    sale = Sale(
+        receipt_number=_generate_receipt(session, shop_id),
+        total=total,
+        discount=round(discount, 2),
+        payment_method=data.payment_method,
+        amount_paid=data.amount_paid,
+        change_given=change,
+        mpesa_ref=data.mpesa_ref,
+        mpesa_phone=data.mpesa_phone,
+        cashier_id=int(current_user["sub"]),
+        cashier_name=current_user["name"],
+        shop_id=shop_id,
+    )
+    session.add(sale)
+    session.flush()
+
+    for entry in items_data:
+        sale_item = SaleItem(
+            sale_id=sale.id,
+            product_id=entry["product"].id,
+            product_name=entry["product"].name,
+            quantity=entry["quantity"],
+            unit_price=entry["unit_price"],
+            subtotal=entry["subtotal"],
+        )
+        session.add(sale_item)
+        entry["product"].stock = max(0, entry["product"].stock - entry["quantity"])
+        session.add(entry["product"])
+
+    session.commit()
+    session.refresh(sale)
+    return sale
+
+
+@router.get("/", response_model=list[SaleRead])
+def list_sales(
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
+    limit: int = Query(default=50, le=200),
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
+):
+    shop_id = current_user.get("shop_id")
+    statement = (
+        select(Sale)
+        .where(Sale.shop_id == shop_id)
+        .order_by(Sale.created_at.desc())
+        .limit(limit)
+    )
+    sales = session.exec(statement).all()
+    if from_date:
+        sales = [s for s in sales if s.created_at.date() >= from_date]
+    if to_date:
+        sales = [s for s in sales if s.created_at.date() <= to_date]
+    return sales
+
+
+@router.get("/{sale_id}", response_model=SaleRead)
+def get_sale(
+    sale_id: int,
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
+):
+    sale = session.get(Sale, sale_id)
+    if not sale or sale.shop_id != current_user.get("shop_id"):
+        raise HTTPException(status_code=404, detail="Sale not found")
+    return sale
