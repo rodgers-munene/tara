@@ -22,7 +22,7 @@ app = FastAPI(
 
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000",
+    "https://tara-sigma.vercel.app,http://localhost:3000,http://127.0.0.1:3000",
 ).split(",")
 
 app.add_middleware(
