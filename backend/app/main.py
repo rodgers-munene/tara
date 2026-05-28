@@ -1,9 +1,10 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.database import create_db_and_tables, run_migrations
 from app.routes import categories, products, sales, auth
-from app.routes import dashboard, customers, day_close, shops, admin
+from app.routes import dashboard, customers, day_close, shops, admin, returns
 
 
 @asynccontextmanager
@@ -19,9 +20,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000",
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,6 +42,7 @@ app.include_router(customers.router)
 app.include_router(day_close.router)
 app.include_router(shops.router)
 app.include_router(admin.router)
+app.include_router(returns.router)
 
 
 @app.get("/")

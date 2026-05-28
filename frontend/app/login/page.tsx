@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Delete, Loader2, Store, ArrowLeft } from "lucide-react";
+import { Delete, Loader2, Store, ArrowLeft, HelpCircle } from "lucide-react";
 import { api, type StaffMember, type ShopInfo } from "../../lib/api";
 import { useAuth } from "../components/AuthProvider";
 
@@ -73,6 +73,7 @@ function ShopCodeStep({ onFound }: { onFound: (info: ShopInfo) => void }) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showHelp, setShowHelp] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -100,30 +101,61 @@ function ShopCodeStep({ onFound }: { onFound: (info: ShopInfo) => void }) {
         >
           <Store size={22} />
         </div>
-        <p className="text-sm font-medium text-center" style={{ color: "var(--text-2)" }}>
-          Enter your shop code to continue
+        <p className="text-base font-semibold text-center" style={{ color: "var(--text)" }}>
+          Welcome back
+        </p>
+        <p className="text-sm text-center" style={{ color: "var(--text-2)" }}>
+          Enter your shop ID to continue
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input
-          type="text"
-          value={code}
-          onChange={(e) => { setCode(e.target.value); setError(""); }}
-          placeholder="e.g. mama-grace-shop"
-          autoFocus
-          autoCapitalize="none"
-          autoCorrect="off"
-          className="w-full rounded-xl border px-4 text-sm outline-none transition-colors"
-          style={{
-            borderColor: "var(--border)",
-            background: "var(--surface)",
-            color: "var(--text)",
-            height: 52,
-          }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-        />
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium" style={{ color: "var(--text-2)" }}>
+              Shop ID
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowHelp((v) => !v)}
+              className="flex items-center gap-1 text-xs font-medium"
+              style={{ color: "var(--brand)" }}
+            >
+              <HelpCircle size={13} />
+              What&apos;s this?
+            </button>
+          </div>
+
+          {showHelp && (
+            <div
+              className="rounded-xl px-4 py-3 text-xs leading-relaxed"
+              style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
+            >
+              Your shop ID is a short name for your shop, like{" "}
+              <span className="font-mono font-semibold">mama-grace-shop</span>.
+              Your shop owner or admin will give it to you.
+            </div>
+          )}
+
+          <input
+            type="text"
+            value={code}
+            onChange={(e) => { setCode(e.target.value); setError(""); }}
+            placeholder="e.g. mama-grace-shop"
+            autoFocus
+            autoCapitalize="none"
+            autoCorrect="off"
+            className="w-full rounded-xl border px-4 text-sm outline-none transition-colors"
+            style={{
+              borderColor: "var(--border)",
+              background: "var(--surface)",
+              color: "var(--text)",
+              height: 52,
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+          />
+        </div>
 
         {error && (
           <p className="text-sm rounded-xl px-4 py-2.5"
@@ -142,10 +174,6 @@ function ShopCodeStep({ onFound }: { onFound: (info: ShopInfo) => void }) {
           Continue
         </button>
       </form>
-
-      <p className="text-xs text-center mt-2" style={{ color: "var(--text-3)" }}>
-        Your shop code is provided by your administrator
-      </p>
     </div>
   );
 }
@@ -280,7 +308,7 @@ export default function LoginPage() {
             className="w-full mt-5 text-xs font-medium text-center"
             style={{ color: "var(--text-3)" }}
           >
-            Change shop code
+            Change shop ID
           </button>
         </div>
       )}
@@ -325,6 +353,15 @@ export default function LoginPage() {
           )}
         </div>
       )}
+
+      <div className="mt-auto pt-10 text-center">
+        <p className="text-xs" style={{ color: "var(--text-3)" }}>
+          Shop owner?{" "}
+          <a href="/admin/login" style={{ color: "var(--brand)", fontWeight: 500 }}>
+            Go to admin console
+          </a>
+        </p>
+      </div>
     </div>
   );
 }

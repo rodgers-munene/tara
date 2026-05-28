@@ -112,10 +112,30 @@ export default function AdminLoginPage() {
         </button>
       </form>
 
-      <p className="text-xs text-center mt-8" style={{ color: "var(--text-3)" }}>
-        First time?{" "}
-        <a href="/admin/setup" style={{ color: "var(--brand)" }}>
-          Set up admin account
+      <div className="w-full max-w-xs mt-4 flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
+          <span className="text-xs" style={{ color: "var(--text-3)" }}>or</span>
+          <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
+        </div>
+        <a
+          href="/admin/setup"
+          className="w-full rounded-xl font-semibold text-sm flex items-center justify-center border-2 transition-colors"
+          style={{
+            height: 52,
+            borderColor: "var(--brand)",
+            color: "var(--brand)",
+            background: "transparent",
+          }}
+        >
+          Create admin account
+        </a>
+      </div>
+
+      <p className="text-xs text-center mt-6" style={{ color: "var(--text-3)" }}>
+        Staff member?{" "}
+        <a href="/login" style={{ color: "var(--brand)", fontWeight: 500 }}>
+          Go to staff login
         </a>
       </p>
     </div>

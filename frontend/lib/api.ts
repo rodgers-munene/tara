@@ -82,8 +82,24 @@ export interface Sale {
   mpesa_ref: string | null;
   mpesa_phone: string | null;
   cashier_name: string | null;
+  is_returned: boolean;
   created_at: string;
   items: SaleItemRead[];
+}
+
+export interface SaleReturn {
+  id: number;
+  return_number: string;
+  sale_id: number;
+  total_refunded: number;
+  reason: string | null;
+  processed_by: string | null;
+  created_at: string;
+}
+
+export interface SaleReturnCreate {
+  sale_id: number;
+  reason?: string;
 }
 
 export interface SaleCreate {

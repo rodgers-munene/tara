@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
 import { api } from "../../../lib/api";
 
 export default function AdminSetupPage() {
@@ -70,6 +70,14 @@ export default function AdminSetupPage() {
       className="flex min-h-svh flex-col items-center justify-center px-6 py-12"
       style={{ background: "var(--bg)" }}
     >
+      <a
+        href="/admin/login"
+        className="flex items-center gap-1.5 text-sm font-medium mb-8 self-start"
+        style={{ color: "var(--text-2)" }}
+      >
+        <ArrowLeft size={15} /> Back to sign in
+      </a>
+
       <div
         className="flex h-14 w-14 items-center justify-center rounded-2xl text-white text-2xl font-bold mb-6 shadow-md"
         style={{ background: "var(--brand)" }}
