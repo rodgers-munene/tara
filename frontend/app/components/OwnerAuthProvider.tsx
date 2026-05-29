@@ -61,7 +61,7 @@ export function OwnerAuthProvider({ children }: { children: React.ReactNode }) {
     if (!owner && !publicPaths.includes(pathname)) {
       router.replace("/owner/login");
     }
-    if (owner && pathname === "/owner/login") {
+    if (owner && publicPaths.includes(pathname)) {
       router.replace("/owner/dashboard");
     }
   }, [initialized, owner, pathname, router]);
