@@ -112,7 +112,14 @@ export default function OwnerLoginPage() {
         </button>
       </form>
 
-      <p className="text-xs text-center mt-8" style={{ color: "var(--text-3)" }}>
+      <p className="text-xs text-center mt-6" style={{ color: "var(--text-3)" }}>
+        Don&apos;t have an account?{" "}
+        <a href="/owner/signup" style={{ color: "var(--brand)", fontWeight: 500 }}>
+          Create one
+        </a>
+      </p>
+
+      <p className="text-xs text-center mt-3" style={{ color: "var(--text-3)" }}>
         Staff member?{" "}
         <a href="/login" style={{ color: "var(--brand)", fontWeight: 500 }}>
           Go to staff login

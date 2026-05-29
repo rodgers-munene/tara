@@ -57,7 +57,7 @@ export function OwnerAuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!initialized) return;
-    const publicPaths = ["/owner/login"];
+    const publicPaths = ["/owner/login", "/owner/signup"];
     if (!owner && !publicPaths.includes(pathname)) {
       router.replace("/owner/login");
     }

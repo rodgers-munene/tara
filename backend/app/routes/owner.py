@@ -39,6 +39,24 @@ def _unique_slug(base: str, session: Session) -> str:
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
+@router.post("/signup/", status_code=201)
+def owner_signup(data: OwnerCreate, session: Session = Depends(get_session)):
+    existing = session.exec(select(Owner).where(Owner.email == data.email.lower())).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="An account with this email already exists")
+    pin_hash = bcrypt.hashpw(data.pin.encode(), bcrypt.gensalt()).decode()
+    owner = Owner(name=data.name, email=data.email.lower(), pin_hash=pin_hash)
+    session.add(owner)
+    session.commit()
+    session.refresh(owner)
+    token = jwt.encode(
+        {"sub": str(owner.id), "name": owner.name, "owner": True},
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+    return {"access_token": token, "token_type": "bearer", "name": owner.name}
+
+
 @router.post("/login/")
 def owner_login(data: OwnerLogin, session: Session = Depends(get_session)):
     owner = session.exec(
