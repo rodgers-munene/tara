@@ -41,6 +41,7 @@ def run_migrations():
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS change_given FLOAT NOT NULL DEFAULT 0",
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS mpesa_phone VARCHAR",
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS is_returned BOOLEAN NOT NULL DEFAULT FALSE",
+                "ALTER TABLE product ADD COLUMN IF NOT EXISTS buying_price FLOAT NOT NULL DEFAULT 0",
             ]
             for stmt in column_migrations:
                 conn.execute(text(stmt))

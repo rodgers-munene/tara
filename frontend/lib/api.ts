@@ -56,6 +56,7 @@ export interface Product {
   id: number;
   name: string;
   price: number;
+  buying_price: number;
   stock: number;
   barcode: string | null;
   category_id: number | null;
@@ -137,8 +138,10 @@ export interface DashboardStats {
   today_count: number;
   today_cash: number;
   today_mpesa: number;
+  today_profit: number;
   week_total: number;
   week_count: number;
+  week_profit: number;
   week_chart: WeekChartItem[];
   top_products: TopProduct[];
   low_stock_count: number;

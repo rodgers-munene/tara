@@ -191,26 +191,34 @@ export default function DashboardPage() {
                 sub={`${stats.today_count} sale${stats.today_count !== 1 ? "s" : ""}`}
                 icon={TrendingUp}
               />
-              <div className="flex-1 rounded-2xl p-4 flex flex-col gap-3" style={{ background: "var(--surface)", border: "1.5px solid var(--border)" }}>
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: "var(--mpesa-light)" }}>
-                  <Smartphone size={18} style={{ color: "var(--mpesa)" }} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-3)" }}>Payment split</p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--brand)" }} />
-                      <span className="text-xs font-medium" style={{ color: "var(--text-2)" }}>
-                        Cash {fmtKES(stats.today_cash)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <div className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--mpesa)" }} />
+              <StatCard
+                label="Today's Profit"
+                value={fmtKES(stats.today_profit)}
+                sub={stats.today_total > 0 ? `${Math.round((stats.today_profit / stats.today_total) * 100)}% margin` : "No sales yet"}
+                icon={Banknote}
+              />
+            </div>
+
+            {/* Payment split */}
+            <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: "var(--surface)", border: "1.5px solid var(--border)" }}>
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: "var(--mpesa-light)" }}>
+                <Smartphone size={18} style={{ color: "var(--mpesa)" }} />
+              </div>
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-3)" }}>Payment split</p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--brand)" }} />
                     <span className="text-xs font-medium" style={{ color: "var(--text-2)" }}>
-                      M-Pesa {fmtKES(stats.today_mpesa)}
+                      Cash {fmtKES(stats.today_cash)}
                     </span>
                   </div>
+                </div>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <div className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--mpesa)" }} />
+                  <span className="text-xs font-medium" style={{ color: "var(--text-2)" }}>
+                    M-Pesa {fmtKES(stats.today_mpesa)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -229,7 +237,7 @@ export default function DashboardPage() {
                 </span>
               </div>
               <p className="text-xs mb-3" style={{ color: "var(--text-3)" }}>
-                {stats.week_count} sales in last 7 days
+                {stats.week_count} sales · {fmtKES(stats.week_profit)} profit
               </p>
               <WeekChart data={stats.week_chart} />
             </div>

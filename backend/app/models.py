@@ -164,6 +164,7 @@ class Product(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     price: float
+    buying_price: float = Field(default=0.0)
     stock: int = Field(default=0)
     barcode: Optional[str] = Field(default=None, index=True)
     category_id: Optional[int] = Field(default=None, foreign_key="category.id")
@@ -177,6 +178,7 @@ class ProductRead(SQLModel):
     id: int
     name: str
     price: float
+    buying_price: float = 0.0
     stock: int
     barcode: Optional[str] = None
     category_id: Optional[int] = None
@@ -186,6 +188,7 @@ class ProductRead(SQLModel):
 class ProductCreate(SQLModel):
     name: str
     price: float
+    buying_price: float = 0.0
     stock: int = 0
     barcode: Optional[str] = None
     category_id: Optional[int] = None
@@ -194,6 +197,7 @@ class ProductCreate(SQLModel):
 class ProductUpdate(SQLModel):
     name: Optional[str] = None
     price: Optional[float] = None
+    buying_price: Optional[float] = None
     stock: Optional[int] = None
     barcode: Optional[str] = None
     category_id: Optional[int] = None

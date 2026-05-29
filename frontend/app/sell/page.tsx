@@ -16,7 +16,7 @@ interface CartItem {
   qty: number;
 }
 
-type ModalStep = "method" | "cash" | "mpesa";
+type ModalStep = "method" | "cash";
 
 // ── Skeleton tile ─────────────────────────────────────────────────────────────
 function SkeletonTile() {
@@ -451,8 +451,6 @@ function PaymentModal({
 }) {
   const [step, setStep] = useState<ModalStep>("method");
   const [cashInput, setCashInput] = useState("");
-  const [mpesaPhone, setMpesaPhone] = useState("");
-  const [mpesaRef, setMpesaRef] = useState("");
   const cashNum = parseFloat(cashInput) || 0;
   const change = cashNum - total;
 
@@ -484,7 +482,7 @@ function PaymentModal({
               </div>
             </button>
             <button
-              onClick={() => setStep("mpesa")}
+              onClick={() => onComplete("mpesa", total)}
               className="flex items-center gap-4 w-full p-4 rounded-xl border-2 text-left transition-all active:scale-98"
               style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
               onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--mpesa)")}
@@ -493,7 +491,7 @@ function PaymentModal({
               <span className="text-2xl">📱</span>
               <div>
                 <p className="font-semibold" style={{ color: "var(--text)" }}>M-Pesa</p>
-                <p className="text-xs" style={{ color: "var(--text-3)" }}>Record M-Pesa payment</p>
+                <p className="text-xs" style={{ color: "var(--text-3)" }}>Tap to confirm — no ref needed</p>
               </div>
             </button>
           </div>
@@ -559,57 +557,6 @@ function PaymentModal({
     );
   }
 
-  return (
-    <div className="modal">
-      <div className="modal-content">
-        <button onClick={() => setStep("method")} className="flex items-center gap-1.5 text-sm font-medium mb-5" style={{ color: "var(--mpesa)" }}>
-          ← Back
-        </button>
-        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-3)" }}>
-          M-Pesa payment
-        </p>
-        <p className="text-2xl font-bold mb-5" style={{ color: "var(--text)" }}>
-          {fmtKES(total)}
-        </p>
-        <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
-          Customer phone number
-        </label>
-        <input
-          type="tel"
-          inputMode="numeric"
-          value={mpesaPhone}
-          onChange={(e) => setMpesaPhone(e.target.value)}
-          placeholder="07XX XXX XXX"
-          autoFocus
-          className="w-full rounded-xl border px-4 text-base font-medium outline-none transition-colors mb-4"
-          style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)", height: 52 }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--mpesa)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-        />
-        <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
-          M-Pesa reference{" "}
-          <span style={{ color: "var(--text-3)", fontWeight: 400 }}>(from customer&apos;s SMS)</span>
-        </label>
-        <input
-          type="text"
-          value={mpesaRef}
-          onChange={(e) => setMpesaRef(e.target.value.toUpperCase())}
-          placeholder="e.g. QXR4567890"
-          className="w-full rounded-xl border px-4 text-base font-medium outline-none transition-colors mb-5"
-          style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)", height: 52 }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--mpesa)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-        />
-        <button
-          onClick={() => onComplete("mpesa", total, mpesaRef || undefined, mpesaPhone || undefined)}
-          className="w-full rounded-xl font-semibold text-base text-white transition-all active:scale-98"
-          style={{ background: "var(--mpesa)", height: 52 }}
-        >
-          Confirm M-Pesa Payment
-        </button>
-      </div>
-    </div>
-  );
 }
 
 // ── Receipt preview ───────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import get_current_user
-from app.models import Sale, Product
+from app.models import Sale, SaleItem, Product
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -20,11 +20,23 @@ def get_stats(
 
     all_sales = session.exec(select(Sale).where(Sale.shop_id == shop_id)).all()
 
-    today_sales = [s for s in all_sales if s.created_at.date() == today]
+    # Build buying-price lookup: product_id -> buying_price
+    products = session.exec(select(Product).where(Product.shop_id == shop_id)).all()
+    buying_prices: dict[int, float] = {p.id: p.buying_price for p in products if p.id is not None}
+
+    def sale_profit(sale: Sale) -> float:
+        profit = 0.0
+        for item in sale.items:
+            cost = buying_prices.get(item.product_id or -1, 0.0)
+            profit += (item.unit_price - cost) * item.quantity
+        return profit
+
+    today_sales = [s for s in all_sales if s.created_at.date() == today and not s.is_returned]
     today_total = sum(s.total for s in today_sales)
     today_count = len(today_sales)
     today_cash = sum(s.total for s in today_sales if s.payment_method == "cash")
     today_mpesa = sum(s.total for s in today_sales if s.payment_method == "mpesa")
+    today_profit = sum(sale_profit(s) for s in today_sales)
 
     week_chart = []
     for i in range(7):
@@ -37,8 +49,10 @@ def get_stats(
             "count": len(day_sales),
         })
 
+    week_sales = [s for s in all_sales if s.created_at.date() >= week_ago and not s.is_returned]
     week_total = sum(item["total"] for item in week_chart)
     week_count = sum(item["count"] for item in week_chart)
+    week_profit = sum(sale_profit(s) for s in week_sales)
 
     product_totals: dict[str, dict] = {}
     for sale in all_sales:
@@ -66,8 +80,10 @@ def get_stats(
         "today_count": today_count,
         "today_cash": round(today_cash, 2),
         "today_mpesa": round(today_mpesa, 2),
+        "today_profit": round(today_profit, 2),
         "week_total": round(week_total, 2),
         "week_count": week_count,
+        "week_profit": round(week_profit, 2),
         "week_chart": week_chart,
         "top_products": top_products,
         "low_stock_count": len(low_stock),

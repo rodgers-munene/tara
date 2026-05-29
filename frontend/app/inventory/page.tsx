@@ -33,6 +33,7 @@ function ProductFormContent({
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [price, setPrice] = useState(initial ? String(initial.price) : "");
+  const [buyingPrice, setBuyingPrice] = useState(initial?.buying_price ? String(initial.buying_price) : "");
   const [stock, setStock] = useState(initial ? String(initial.stock) : "0");
   const [barcode, setBarcode] = useState(initial?.barcode ?? "");
   const [categoryId, setCategoryId] = useState<string>(
@@ -45,13 +46,14 @@ function ProductFormContent({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !price) { setError("Name and price are required."); return; }
+    if (!name.trim() || !price) { setError("Name and selling price are required."); return; }
     setSaving(true);
     setError("");
     try {
       const body = {
         name: name.trim(),
         price: parseFloat(price),
+        buying_price: buyingPrice ? parseFloat(buyingPrice) : 0,
         stock: parseInt(stock) || 0,
         barcode: barcode.trim() || null,
         category_id: categoryId ? parseInt(categoryId) : null,
@@ -117,7 +119,7 @@ function ProductFormContent({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
-              Price (KES) *
+              Selling price (KES) *
             </label>
             <input
               type="number"
@@ -133,13 +135,13 @@ function ProductFormContent({
           </div>
           <div>
             <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
-              Stock (units)
+              Buying price (KES)
             </label>
             <input
               type="number"
-              inputMode="numeric"
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
+              inputMode="decimal"
+              value={buyingPrice}
+              onChange={(e) => setBuyingPrice(e.target.value)}
               placeholder="0"
               className="w-full rounded-xl border px-4 text-sm outline-none transition-colors"
               style={inputStyle}
@@ -147,6 +149,46 @@ function ProductFormContent({
               onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
             />
           </div>
+        </div>
+
+        {/* Margin hint */}
+        {price && buyingPrice && parseFloat(price) > 0 && parseFloat(buyingPrice) > 0 && (
+          (() => {
+            const sell = parseFloat(price);
+            const buy = parseFloat(buyingPrice);
+            const profit = sell - buy;
+            const margin = Math.round((profit / sell) * 100);
+            return (
+              <div
+                className="flex items-center justify-between rounded-xl px-4 py-2.5 -mt-1"
+                style={{ background: profit >= 0 ? "var(--brand-light)" : "var(--danger-light)" }}
+              >
+                <span className="text-xs font-medium" style={{ color: profit >= 0 ? "var(--brand-dark)" : "var(--danger)" }}>
+                  Profit per unit
+                </span>
+                <span className="text-xs font-bold" style={{ color: profit >= 0 ? "var(--brand-dark)" : "var(--danger)" }}>
+                  KES {profit.toFixed(0)} · {margin}% margin
+                </span>
+              </div>
+            );
+          })()
+        )}
+
+        <div>
+          <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+            Stock (units)
+          </label>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={stock}
+            onChange={(e) => setStock(e.target.value)}
+            placeholder="0"
+            className="w-full rounded-xl border px-4 text-sm outline-none transition-colors"
+            style={inputStyle}
+            onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+          />
         </div>
 
         <div>
@@ -532,6 +574,14 @@ export default function InventoryPage() {
                       <p className="text-sm font-bold" style={{ color: "var(--text)" }}>
                         {fmtKES(p.price)}
                       </p>
+                      {p.buying_price > 0 && (() => {
+                        const margin = Math.round(((p.price - p.buying_price) / p.price) * 100);
+                        return (
+                          <p className="text-[11px] font-medium mt-0.5" style={{ color: margin >= 0 ? "var(--brand-dark)" : "var(--danger)" }}>
+                            {margin}% margin
+                          </p>
+                        );
+                      })()}
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
