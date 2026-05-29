@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import {
-  Loader2, Plus, Store, X, ChevronDown, ChevronUp,
-  Users, LogOut, Trash2, CheckCircle, XCircle, UserPlus,
+  Loader2, Plus, Store, X, Users, LogOut, Trash2,
+  UserPlus, CheckCircle, XCircle, TrendingUp, ShoppingBag,
 } from "lucide-react";
 import { useOwnerAuth } from "../../components/OwnerAuthProvider";
 
@@ -292,7 +292,6 @@ function StaffPanel({
           maxHeight: "85svh",
         }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: "var(--border)" }}>
           <div>
             <p className="font-bold" style={{ color: "var(--text)" }}>{shop.name}</p>
@@ -301,16 +300,13 @@ function StaffPanel({
           <button onClick={onClose} style={{ color: "var(--text-3)" }}><X size={20} /></button>
         </div>
 
-        {/* Staff list */}
         <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-2">
           {loading ? (
             <div className="flex h-20 items-center justify-center">
               <Loader2 size={20} className="animate-spin" style={{ color: "var(--brand)" }} />
             </div>
           ) : staff.length === 0 ? (
-            <p className="text-sm text-center py-6" style={{ color: "var(--text-3)" }}>
-              No staff yet
-            </p>
+            <p className="text-sm text-center py-6" style={{ color: "var(--text-3)" }}>No staff yet</p>
           ) : (
             staff.map((s) => (
               <div
@@ -327,7 +323,7 @@ function StaffPanel({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{s.name}</p>
                   <p className="text-xs capitalize" style={{ color: "var(--text-3)" }}>
-                    {s.role} · ID: <span className="font-mono font-bold">{s.id}</span>
+                    {s.role} · Login ID: <span className="font-mono font-bold">{s.id}</span>
                   </p>
                 </div>
                 {removing === s.id ? (
@@ -349,7 +345,6 @@ function StaffPanel({
           )}
         </div>
 
-        {/* Add staff */}
         <div className="px-6 pb-6 pt-2 shrink-0 border-t" style={{ borderColor: "var(--border)" }}>
           {!showAdd ? (
             <button
@@ -388,7 +383,6 @@ function StaffPanel({
                   />
                 </div>
               </div>
-
               <select
                 value={form.role}
                 onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
@@ -437,79 +431,141 @@ function StaffPanel({
 
 function ShopCard({
   shop,
-  token,
   onToggleActive,
   onManageStaff,
   toggling,
 }: {
   shop: Shop;
-  token: string;
   onToggleActive: (shop: Shop) => void;
   onManageStaff: (shop: Shop) => void;
   toggling: boolean;
 }) {
   return (
     <div
-      className="rounded-2xl p-4 flex flex-col gap-3"
+      className="rounded-2xl overflow-hidden flex flex-col"
       style={{
         background: "var(--surface)",
         border: "1.5px solid var(--border)",
-        opacity: shop.active ? 1 : 0.6,
+        opacity: shop.active ? 1 : 0.65,
       }}
     >
-      <div className="flex items-start gap-3">
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
-          style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
-        >
-          {shop.name.charAt(0).toUpperCase()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold" style={{ color: "var(--text)" }}>{shop.name}</p>
-          <p className="text-xs font-mono mt-0.5" style={{ color: "var(--text-3)" }}>{shop.slug}</p>
-        </div>
-        <span
-          className="shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
-          style={{
-            background: shop.plan === "pro" ? "var(--brand-light)" : "var(--surface-2)",
-            color: shop.plan === "pro" ? "var(--brand-dark)" : "var(--text-3)",
-          }}
-        >
-          {shop.plan}
-        </span>
-      </div>
+      {/* Status accent bar */}
+      <div style={{ height: 3, background: shop.active ? "var(--brand)" : "var(--border)" }} />
 
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1.5">
-          <Users size={13} style={{ color: "var(--text-3)" }} />
-          <span className="text-xs" style={{ color: "var(--text-3)" }}>
-            {shop.staff_count} staff
+      <div className="p-5 flex flex-col gap-4">
+        {/* Top row — avatar + name + badges */}
+        <div className="flex items-start gap-4">
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-bold"
+            style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
+          >
+            {shop.name.charAt(0).toUpperCase()}
+          </div>
+
+          <div className="flex-1 min-w-0 pt-0.5">
+            <p className="font-bold text-base leading-tight" style={{ color: "var(--text)" }}>
+              {shop.name}
+            </p>
+            <p className="text-xs font-mono mt-0.5 truncate" style={{ color: "var(--text-3)" }}>
+              {shop.slug}
+            </p>
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <span
+                className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
+                style={{
+                  background: shop.plan === "pro" ? "var(--brand)" : "var(--surface-2)",
+                  color: shop.plan === "pro" ? "#fff" : "var(--text-3)",
+                }}
+              >
+                {shop.plan}
+              </span>
+              <span
+                className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
+                style={{
+                  background: shop.active ? "var(--brand-light)" : "var(--surface-2)",
+                  color: shop.active ? "var(--brand-dark)" : "var(--text-3)",
+                }}
+              >
+                {shop.active ? "Active" : "Inactive"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Staff count pill */}
+        <div
+          className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+          style={{ background: "var(--surface-2)" }}
+        >
+          <Users size={14} style={{ color: "var(--text-3)" }} />
+          <span className="text-sm font-medium" style={{ color: "var(--text-2)" }}>
+            {shop.staff_count} staff member{shop.staff_count !== 1 ? "s" : ""}
           </span>
         </div>
-        <button
-          onClick={() => onToggleActive(shop)}
-          disabled={toggling}
-          className="flex items-center gap-1 text-xs font-medium"
-          style={{ color: shop.active ? "var(--brand)" : "var(--text-3)" }}
-        >
-          {toggling ? (
-            <Loader2 size={12} className="animate-spin" />
-          ) : shop.active ? (
-            <CheckCircle size={13} />
-          ) : (
-            <XCircle size={13} />
-          )}
-          {shop.active ? "Active" : "Inactive"}
-        </button>
-      </div>
 
-      <button
-        onClick={() => onManageStaff(shop)}
-        className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold w-full"
-        style={{ background: "var(--surface-2)", color: "var(--text-2)" }}
+        {/* Actions */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => onManageStaff(shop)}
+            className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white flex items-center justify-center gap-2"
+            style={{ background: "var(--brand)" }}
+          >
+            <Users size={14} /> Manage Staff
+          </button>
+          <button
+            onClick={() => onToggleActive(shop)}
+            disabled={toggling}
+            className="rounded-xl px-3.5 py-2.5 text-sm font-medium flex items-center gap-1.5"
+            style={{
+              background: "var(--surface-2)",
+              color: shop.active ? "var(--danger)" : "var(--brand)",
+            }}
+          >
+            {toggling ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : shop.active ? (
+              <XCircle size={14} />
+            ) : (
+              <CheckCircle size={14} />
+            )}
+            {shop.active ? "Disable" : "Enable"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Stat card ─────────────────────────────────────────────────────────────────
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
+  accent?: string;
+}) {
+  return (
+    <div
+      className="rounded-2xl p-4 flex flex-col gap-3"
+      style={{ background: "var(--surface)", border: "1.5px solid var(--border)" }}
+    >
+      <div
+        className="flex h-9 w-9 items-center justify-center rounded-xl"
+        style={{ background: accent ? `${accent}18` : "var(--brand-light)" }}
       >
-        <Users size={14} /> Manage staff
-      </button>
+        <Icon size={18} style={{ color: accent ?? "var(--brand-dark)" }} />
+      </div>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>
+          {label}
+        </p>
+        <p className="text-2xl font-bold mt-0.5" style={{ color: "var(--text)" }}>{value}</p>
+      </div>
     </div>
   );
 }
@@ -524,6 +580,13 @@ export default function OwnerDashboard() {
   const [showCreate, setShowCreate] = useState(false);
   const [staffShop, setStaffShop] = useState<Shop | null>(null);
   const [toggling, setToggling] = useState<number | null>(null);
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  })();
 
   async function load() {
     if (!token) return;
@@ -573,49 +636,47 @@ export default function OwnerDashboard() {
         <span className="font-semibold text-sm flex-1" style={{ color: "var(--text)" }}>
           My Shops
         </span>
-        <span className="text-xs mr-2 hidden sm:block" style={{ color: "var(--text-3)" }}>
-          {owner.name}
-        </span>
         <button
           onClick={logout}
-          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg"
-          style={{ background: "var(--surface-2)", color: "var(--text-2)" }}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-opacity hover:opacity-70"
+          style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
+          title="Sign out"
         >
-          <LogOut size={13} /> Sign out
+          {owner.name.charAt(0).toUpperCase()}
         </button>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 flex flex-col gap-6">
+      <main className="max-w-2xl mx-auto px-4 py-6 flex flex-col gap-6 pb-10">
+
+        {/* Greeting */}
+        <div className="pt-1">
+          <h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>
+            {greeting}, {owner.name.split(" ")[0]}
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-3)" }}>
+            {stats
+              ? `${stats.total_shops} shop${stats.total_shops !== 1 ? "s" : ""} · ${stats.total_staff} staff member${stats.total_staff !== 1 ? "s" : ""}`
+              : "Loading your business overview…"}
+          </p>
+        </div>
+
         {/* Stats */}
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: "Shops", value: stats.total_shops },
-              { label: "Active", value: stats.active_shops },
-              { label: "Staff", value: stats.total_staff },
-              { label: "Total sales", value: stats.total_sales.toLocaleString() },
-            ].map(({ label, value }) => (
-              <div
-                key={label}
-                className="rounded-2xl p-4 flex flex-col gap-1"
-                style={{ background: "var(--surface)", border: "1.5px solid var(--border)" }}
-              >
-                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>
-                  {label}
-                </p>
-                <p className="text-2xl font-bold" style={{ color: "var(--text)" }}>{value}</p>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label="Total shops" value={stats.total_shops} icon={Store} />
+            <StatCard label="Active" value={stats.active_shops} icon={CheckCircle} />
+            <StatCard label="Staff" value={stats.total_staff} icon={Users} />
+            <StatCard label="Total sales" value={stats.total_sales.toLocaleString()} icon={TrendingUp} />
           </div>
         )}
 
         {/* Shops */}
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-bold" style={{ color: "var(--text)" }}>Your shops</h2>
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 text-sm font-semibold px-3.5 py-2 rounded-xl text-white"
+              className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl text-white"
               style={{ background: "var(--brand)" }}
             >
               <Plus size={15} /> New shop
@@ -623,24 +684,29 @@ export default function OwnerDashboard() {
           </div>
 
           {loading ? (
-            <div className="flex h-32 items-center justify-center">
+            <div className="flex h-40 items-center justify-center">
               <Loader2 size={24} className="animate-spin" style={{ color: "var(--brand)" }} />
             </div>
           ) : shops.length === 0 ? (
             <div
-              className="rounded-2xl p-10 flex flex-col items-center gap-4"
+              className="rounded-2xl p-10 flex flex-col items-center gap-4 text-center"
               style={{ background: "var(--surface)", border: "1.5px solid var(--border)" }}
             >
-              <Store size={40} strokeWidth={1} style={{ color: "var(--text-3)" }} />
-              <div className="text-center">
-                <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>No shops yet</p>
-                <p className="text-xs mt-1" style={{ color: "var(--text-3)" }}>
-                  Create your first shop to get started
+              <div
+                className="flex h-16 w-16 items-center justify-center rounded-2xl"
+                style={{ background: "var(--brand-light)" }}
+              >
+                <Store size={32} strokeWidth={1.5} style={{ color: "var(--brand-dark)" }} />
+              </div>
+              <div>
+                <p className="font-bold" style={{ color: "var(--text)" }}>No shops yet</p>
+                <p className="text-sm mt-1" style={{ color: "var(--text-3)" }}>
+                  Create your first shop to start selling
                 </p>
               </div>
               <button
                 onClick={() => setShowCreate(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
+                className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white"
                 style={{ background: "var(--brand)" }}
               >
                 <Plus size={15} /> Create first shop
@@ -652,7 +718,6 @@ export default function OwnerDashboard() {
                 <ShopCard
                   key={shop.id}
                   shop={shop}
-                  token={token!}
                   onToggleActive={toggleActive}
                   onManageStaff={setStaffShop}
                   toggling={toggling === shop.id}
