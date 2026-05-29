@@ -2,6 +2,7 @@ import os
 import re
 import bcrypt
 import jwt
+from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
@@ -82,11 +83,18 @@ def list_shops(
 ):
     owner_id = int(payload["sub"])
     shops = session.exec(select(Shop).where(Shop.owner_id == owner_id).order_by(Shop.created_at.desc())).all()
+    today = date.today()
+    week_ago = today - timedelta(days=6)
     result = []
     for shop in shops:
         staff_list = session.exec(
             select(Staff).where(Staff.shop_id == shop.id, Staff.active == True)
         ).all()
+        all_sales = session.exec(
+            select(Sale).where(Sale.shop_id == shop.id, Sale.is_returned == False)
+        ).all()
+        today_sales = [s for s in all_sales if s.created_at.date() == today]
+        week_sales = [s for s in all_sales if s.created_at.date() >= week_ago]
         result.append({
             "id": shop.id,
             "name": shop.name,
@@ -94,6 +102,10 @@ def list_shops(
             "plan": shop.plan,
             "active": shop.active,
             "staff_count": len(staff_list),
+            "today_sales": len(today_sales),
+            "today_revenue": round(sum(s.total for s in today_sales), 2),
+            "week_revenue": round(sum(s.total for s in week_sales), 2),
+            "total_sales": len(all_sales),
             "created_at": shop.created_at.isoformat(),
         })
     return result

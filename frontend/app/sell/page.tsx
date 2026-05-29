@@ -757,6 +757,8 @@ export default function SellPage() {
   const [offlineQueued, setOfflineQueued] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [saleError, setSaleError] = useState<string | null>(null);
+  const [pendingPayload, setPendingPayload] = useState<SaleCreate | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const { user, logout } = useAuth();
   const { isOnline, refreshQueue } = useOffline();
@@ -786,10 +788,13 @@ export default function SellPage() {
   const addToCart = useCallback((product: Product) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.product.id === product.id);
-      if (existing)
+      if (existing) {
+        if (existing.qty >= product.stock) return prev;
         return prev.map((i) =>
           i.product.id === product.id ? { ...i, qty: i.qty + 1 } : i
         );
+      }
+      if (product.stock === 0) return prev;
       return [...prev, { product, qty: 1 }];
     });
   }, []);
@@ -797,7 +802,9 @@ export default function SellPage() {
   const updateCart = useCallback((id: number, delta: number) => {
     setCart((prev) =>
       prev.map((i) =>
-        i.product.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i
+        i.product.id === id
+          ? { ...i, qty: Math.min(i.product.stock, Math.max(1, i.qty + delta)) }
+          : i
       )
     );
   }, []);
@@ -821,13 +828,34 @@ export default function SellPage() {
     setPayOpen(true);
   }, []);
 
+  const submitSale = useCallback(async (payload: SaleCreate) => {
+    setSubmitting(true);
+    setSaleError(null);
+    try {
+      const sale = await api.post<Sale>("/sales/", payload);
+      setPayOpen(false);
+      setPendingPayload(null);
+      setCompletedSale(sale);
+      api.get<Product[]>("/products/").then(setProducts);
+    } catch (e: unknown) {
+      const msg = (e as Error).message ?? "";
+      const isNetwork = !msg || msg.includes("fetch") || msg.includes("network") || msg.includes("Failed to fetch");
+      setSaleError(isNetwork
+        ? "Could not reach the server. Check your connection and try again."
+        : msg
+      );
+      setPendingPayload(payload);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [setProducts]);
+
   const handlePaymentComplete = useCallback(async (
     method: "cash" | "mpesa",
     amountPaid: number,
     mpesaRef?: string,
     mpesaPhone?: string
   ) => {
-    setSubmitting(true);
     const payload: SaleCreate = {
       items: cart.map((i) => ({ product_id: i.product.id, quantity: i.qty })),
       payment_method: method,
@@ -842,22 +870,11 @@ export default function SellPage() {
       refreshQueue();
       setPayOpen(false);
       setOfflineQueued(true);
-      setSubmitting(false);
       return;
     }
 
-    try {
-      const sale = await api.post<Sale>("/sales/", payload);
-      setPayOpen(false);
-      setCompletedSale(sale);
-      // Refresh stock counts in background
-      api.get<Product[]>("/products/").then(setProducts);
-    } catch (e: unknown) {
-      alert((e as Error).message ?? "Failed to record sale.");
-    } finally {
-      setSubmitting(false);
-    }
-  }, [cart, discountAmount, isOnline, user, refreshQueue]);
+    await submitSale(payload);
+  }, [cart, discountAmount, isOnline, user, refreshQueue, submitSale]);
 
   const filtered = products.filter((p) => {
     if (activeCat !== null && p.category_id !== activeCat) return false;
@@ -1031,6 +1048,44 @@ export default function SellPage() {
 
       {/* Offline queued overlay */}
       {offlineQueued && <QueuedOverlay onNewSale={clearCart} />}
+
+      {/* Sale error overlay */}
+      {saleError && pendingPayload && (
+        <div
+          className="fixed inset-0 flex items-center justify-center p-6"
+          style={{ background: "rgb(0 0 0 / 0.5)", zIndex: 80 }}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl p-6 flex flex-col gap-4"
+            style={{ background: "var(--surface)", border: "1.5px solid var(--border)" }}
+          >
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-2xl"
+              style={{ background: "var(--danger-light)" }}
+            >
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <div>
+              <p className="font-bold" style={{ color: "var(--text)" }}>Sale not recorded</p>
+              <p className="text-sm mt-1" style={{ color: "var(--text-3)" }}>{saleError}</p>
+            </div>
+            <button
+              onClick={() => submitSale(pendingPayload)}
+              className="w-full rounded-xl py-3 font-semibold text-sm text-white"
+              style={{ background: "var(--brand)" }}
+            >
+              Try again
+            </button>
+            <button
+              onClick={() => { setSaleError(null); setPendingPayload(null); setPayOpen(true); }}
+              className="w-full rounded-xl py-3 text-sm font-medium"
+              style={{ background: "var(--surface-2)", color: "var(--text-2)" }}
+            >
+              Change payment method
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Submitting overlay */}
       {submitting && (

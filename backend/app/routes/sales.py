@@ -39,6 +39,11 @@ def create_sale(
             raise HTTPException(status_code=404, detail=f"Product {item_in.product_id} not found")
         if not product.active:
             raise HTTPException(status_code=400, detail=f"Product '{product.name}' is not active")
+        if product.stock < item_in.quantity:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough stock for '{product.name}'. Available: {product.stock}"
+            )
 
         subtotal = product.price * item_in.quantity
         subtotal_total += subtotal

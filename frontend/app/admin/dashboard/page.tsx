@@ -37,6 +37,7 @@ interface PlatformStats {
   active_owners: number;
   total_shops: number;
   total_sales: number;
+  total_revenue: number;
 }
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
@@ -246,11 +247,12 @@ export default function AdminDashboard() {
       <main className="max-w-3xl mx-auto px-4 py-6 flex flex-col gap-6">
         {/* Stats */}
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <StatCard label="Owners" value={stats.total_owners} />
-            <StatCard label="Active" value={stats.active_owners} />
+            <StatCard label="Active owners" value={stats.active_owners} />
             <StatCard label="Total shops" value={stats.total_shops} />
             <StatCard label="Total sales" value={stats.total_sales.toLocaleString()} />
+            <StatCard label="Platform revenue" value={`KES ${stats.total_revenue.toLocaleString("en-KE", { maximumFractionDigits: 0 })}`} />
           </div>
         )}
 

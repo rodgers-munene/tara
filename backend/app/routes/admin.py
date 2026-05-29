@@ -212,10 +212,12 @@ def platform_stats(
     from app.models import Sale
     owners = session.exec(select(Owner)).all()
     shops = session.exec(select(Shop)).all()
-    total_sales = len(session.exec(select(Sale)).all())
+    sales = session.exec(select(Sale).where(Sale.is_returned == False)).all()
+    total_revenue = round(sum(s.total for s in sales), 2)
     return {
         "total_owners": len(owners),
         "active_owners": sum(1 for o in owners if o.active),
         "total_shops": len(shops),
-        "total_sales": total_sales,
+        "total_sales": len(sales),
+        "total_revenue": total_revenue,
     }

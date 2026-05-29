@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   Loader2, Plus, Store, X, Users, LogOut, Trash2,
-  UserPlus, CheckCircle, XCircle, TrendingUp, ShoppingBag,
+  UserPlus, CheckCircle, XCircle, TrendingUp, ShoppingBag, Receipt,
 } from "lucide-react";
 import { useOwnerAuth } from "../../components/OwnerAuthProvider";
 
@@ -33,6 +33,10 @@ interface Shop {
   plan: string;
   active: boolean;
   staff_count: number;
+  today_sales: number;
+  today_revenue: number;
+  week_revenue: number;
+  total_sales: number;
   manager_id?: number;
   created_at: string;
 }
@@ -492,15 +496,23 @@ function ShopCard({
           </div>
         </div>
 
-        {/* Staff count pill */}
-        <div
-          className="flex items-center gap-2 rounded-xl px-3 py-2.5"
-          style={{ background: "var(--surface-2)" }}
-        >
-          <Users size={14} style={{ color: "var(--text-3)" }} />
-          <span className="text-sm font-medium" style={{ color: "var(--text-2)" }}>
-            {shop.staff_count} staff member{shop.staff_count !== 1 ? "s" : ""}
-          </span>
+        {/* Stats row */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: "Today", value: `KES ${shop.today_revenue.toLocaleString("en-KE", { maximumFractionDigits: 0 })}`, sub: `${shop.today_sales} sale${shop.today_sales !== 1 ? "s" : ""}` },
+            { label: "This week", value: `KES ${shop.week_revenue.toLocaleString("en-KE", { maximumFractionDigits: 0 })}` },
+            { label: "Staff", value: String(shop.staff_count), sub: "members" },
+          ].map(({ label, value, sub }) => (
+            <div
+              key={label}
+              className="rounded-xl px-3 py-2.5 flex flex-col"
+              style={{ background: "var(--surface-2)" }}
+            >
+              <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-3)" }}>{label}</p>
+              <p className="text-sm font-bold mt-0.5 leading-tight" style={{ color: "var(--text)" }}>{value}</p>
+              {sub && <p className="text-[10px] mt-0.5" style={{ color: "var(--text-3)" }}>{sub}</p>}
+            </div>
+          ))}
         </div>
 
         {/* Actions */}
@@ -655,7 +667,7 @@ export default function OwnerDashboard() {
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-3)" }}>
             {stats
-              ? `${stats.total_shops} shop${stats.total_shops !== 1 ? "s" : ""} · ${stats.total_staff} staff member${stats.total_staff !== 1 ? "s" : ""}`
+              ? `${stats.total_shops} shop${stats.total_shops !== 1 ? "s" : ""} · ${stats.total_staff} staff · ${stats.total_sales.toLocaleString()} total sales`
               : "Loading your business overview…"}
           </p>
         </div>
