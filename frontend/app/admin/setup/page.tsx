@@ -51,7 +51,7 @@ export default function AdminSetupPage() {
           <CheckCircle2 size={64} strokeWidth={1.5} style={{ color: "var(--brand)" }} />
           <p className="text-2xl font-bold" style={{ color: "var(--text)" }}>Admin account created!</p>
           <p className="text-sm text-center" style={{ color: "var(--text-3)" }}>
-            You can now sign in to the admin console.
+            You can now sign in to Business Hub.
           </p>
           <button
             onClick={() => router.push("/admin/login")}

@@ -358,7 +358,7 @@ export default function LoginPage() {
         <p className="text-xs" style={{ color: "var(--text-3)" }}>
           Shop owner?{" "}
           <a href="/admin/login" style={{ color: "var(--brand)", fontWeight: 500 }}>
-            Go to admin console
+            Go to Business Hub
           </a>
         </p>
       </div>

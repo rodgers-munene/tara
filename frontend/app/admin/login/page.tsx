@@ -41,7 +41,7 @@ export default function AdminLoginPage() {
         T
       </div>
       <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>
-        Admin Console
+        Business Hub
       </h1>
       <p className="text-sm mb-8 text-center" style={{ color: "var(--text-2)" }}>
         Tara POS platform management
