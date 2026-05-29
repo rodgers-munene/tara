@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, ShoppingCart, Package, Receipt, Users, LogOut } from "lucide-react";
 import { useAuth } from "./AuthProvider";
+import { useState } from "react";
 
 const links = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
@@ -17,8 +18,65 @@ export default function NavBar() {
   const path = usePathname();
   const { user, logout } = useAuth();
 
+  const [showLogout, setShowLogout] = useState(false);
+
   return (
     <>
+      {/* top header — mobile */}
+      <header
+        className="fixed top-0 left-0 right-0 z-30 flex items-center px-4 h-12 border-b lg:hidden"
+        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+      >
+        <div className="flex items-center gap-2 flex-1">
+          <div
+            className="flex h-6 w-6 items-center justify-center rounded-md text-white text-xs font-bold"
+            style={{ background: "var(--brand)" }}
+          >
+            T
+          </div>
+          <span className="font-semibold text-sm" style={{ color: "var(--text)" }}>
+            Tara POS
+          </span>
+        </div>
+
+        {user && (
+          <div className="relative">
+            <button
+              onClick={() => setShowLogout((v) => !v)}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+              style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
+            >
+              {user.name.charAt(0).toUpperCase()}
+            </button>
+
+            {showLogout && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowLogout(false)}
+                />
+                <div
+                  className="absolute right-0 top-9 z-50 rounded-xl shadow-lg border min-w-40 p-1"
+                  style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+                >
+                  <div className="px-3 py-2 border-b mb-1" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-xs font-semibold" style={{ color: "var(--text)" }}>{user.name}</p>
+                    <p className="text-[11px] capitalize" style={{ color: "var(--text-3)" }}>{user.role}</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowLogout(false); logout(); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
+                    style={{ color: "var(--danger)" }}
+                  >
+                    <LogOut size={14} /> Sign out
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </header>
+
       {/* bottom nav — mobile */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-30 flex border-t lg:hidden"

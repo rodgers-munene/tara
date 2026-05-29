@@ -141,30 +141,17 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="flex min-h-svh flex-col lg:pl-56" style={{ background: "var(--bg)" }}>
+    <div className="flex min-h-svh flex-col lg:pl-56 pt-12 lg:pt-0" style={{ background: "var(--bg)" }}>
       <NavBar />
 
       {/* Header */}
       <header
-        className="sticky top-0 z-20 flex items-center justify-between px-4 h-14 border-b"
+        className="sticky top-12 lg:top-0 z-20 flex items-center justify-between px-4 h-14 border-b"
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
-        <div className="flex items-center gap-2 lg:hidden">
-          <div
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-white text-xs font-bold"
-            style={{ background: "var(--brand)" }}
-          >
-            T
-          </div>
-          <span className="font-semibold text-sm" style={{ color: "var(--text)" }}>
-            Tara POS
-          </span>
-        </div>
-        <div className="hidden lg:block">
-          <span className="font-semibold text-base" style={{ color: "var(--text)" }}>
-            Dashboard
-          </span>
-        </div>
+        <span className="font-semibold text-base" style={{ color: "var(--text)" }}>
+          Dashboard
+        </span>
         <Link
           href="/sell"
           className="flex items-center gap-1.5 text-sm font-semibold px-3 h-8 rounded-lg text-white"

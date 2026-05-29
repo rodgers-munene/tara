@@ -394,12 +394,12 @@ export default function SalesPage() {
   const todayCount = (grouped[todayStr] ?? []).filter((s) => !s.is_returned).length;
 
   return (
-    <div className="flex min-h-svh flex-col lg:pl-56" style={{ background: "var(--bg)" }}>
+    <div className="flex min-h-svh flex-col lg:pl-56 pt-12 lg:pt-0" style={{ background: "var(--bg)" }}>
       <NavBar />
 
       {/* Header */}
       <header
-        className="sticky top-0 z-20 flex items-center gap-3 px-4 h-14 border-b"
+        className="sticky top-12 lg:top-0 z-20 flex items-center gap-3 px-4 h-14 border-b"
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <span className="font-semibold text-base flex-1" style={{ color: "var(--text)" }}>

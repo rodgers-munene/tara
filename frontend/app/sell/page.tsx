@@ -921,22 +921,14 @@ export default function SellPage() {
   const qtyInCart = (id: number) => cart.find((i) => i.product.id === id)?.qty ?? 0;
 
   return (
-    <div className="flex min-h-svh flex-col lg:pl-56" style={{ background: "var(--bg)" }}>
+    <div className="flex min-h-svh flex-col lg:pl-56 pt-12 lg:pt-0" style={{ background: "var(--bg)" }}>
       <NavBar />
 
       {/* Header */}
       <header
-        className="sticky top-0 z-20 flex items-center gap-3 px-4 h-14 border-b"
+        className="sticky top-12 lg:top-0 z-20 flex items-center gap-3 px-4 h-14 border-b"
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
-        <div className="flex items-center gap-2 shrink-0 lg:hidden">
-          <div
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-white text-xs font-bold"
-            style={{ background: "var(--brand)" }}
-          >
-            T
-          </div>
-        </div>
         <div
           className="flex flex-1 items-center gap-2 rounded-xl px-3 h-9"
           style={{ background: "var(--surface-2)", border: "1.5px solid var(--border)" }}
@@ -974,8 +966,8 @@ export default function SellPage() {
 
       {/* Category tabs */}
       <div
-        className="sticky z-10 flex gap-2 px-4 py-2.5 no-scrollbar overflow-x-auto border-b"
-        style={{ top: 56, background: "var(--surface)", borderColor: "var(--border)" }}
+        className="sticky top-[104px] lg:top-14 z-10 flex gap-2 px-4 py-2.5 no-scrollbar overflow-x-auto border-b"
+        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <button
           onClick={() => setActiveCat(null)}

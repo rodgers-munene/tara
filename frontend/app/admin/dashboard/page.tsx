@@ -275,7 +275,7 @@ export default function AdminDashboard() {
           T
         </div>
         <span className="font-semibold text-sm flex-1" style={{ color: "var(--text)" }}>
-          Admin Console
+          Business Hub
         </span>
         <span className="text-xs mr-2 hidden sm:block" style={{ color: "var(--text-3)" }}>
           {admin.name}
