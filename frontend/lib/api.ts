@@ -1,4 +1,8 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// All browser API calls go through the /api proxy route to avoid CORS errors
+// when Render's free-tier proxy returns 502s before FastAPI starts.
+const BASE = typeof window !== "undefined"
+  ? "/api"
+  : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {

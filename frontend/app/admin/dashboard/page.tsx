@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Plus, X, CheckCircle, XCircle, LogOut, Users } from "lucide-react";
 import { useAdminAuth } from "../../components/AdminAuthProvider";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const BASE = "/api";
 
 async function adminRequest<T>(path: string, token: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

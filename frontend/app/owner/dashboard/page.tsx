@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useOwnerAuth } from "../../components/OwnerAuthProvider";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const BASE = "/api";
 
 async function ownerRequest<T>(path: string, token: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
