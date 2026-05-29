@@ -46,6 +46,11 @@ def run_migrations():
                 conn.execute(text(stmt))
             conn.commit()
 
+            # Add owner_id to shop table
+            conn.execute(text(
+                "ALTER TABLE shop ADD COLUMN IF NOT EXISTS owner_id INTEGER REFERENCES owner(id)"
+            ))
+
             # Add shop_id column to every tenant table (no-op if already exists)
             tables = ["staff", "category", "product", "sale", "customer", "credit_entry", "day_close"]
             for table in tables:

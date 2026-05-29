@@ -10,6 +10,7 @@ from app.dependencies import require_superadmin
 from app.models import (
     Shop, ShopCreate, ShopRead, ShopUpdate,
     Staff, SuperAdmin, SuperAdminSetup, SuperAdminLogin,
+    Owner, OwnerCreate,
 )
 
 SECRET_KEY = os.getenv("JWT_SECRET", "tara-dev-secret-change-in-production")
@@ -142,6 +143,65 @@ def update_shop(
     return shop
 
 
+# ── Owner management ──────────────────────────────────────────────────────────
+
+@router.post("/owners/", status_code=201)
+def create_owner(
+    data: OwnerCreate,
+    session: Session = Depends(get_session),
+    _: dict = Depends(require_superadmin),
+):
+    existing = session.exec(select(Owner).where(Owner.email == data.email.lower())).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already in use")
+    pin_hash = bcrypt.hashpw(data.pin.encode(), bcrypt.gensalt()).decode()
+    owner = Owner(name=data.name, email=data.email.lower(), pin_hash=pin_hash)
+    session.add(owner)
+    session.commit()
+    session.refresh(owner)
+    return {"id": owner.id, "name": owner.name, "email": owner.email, "active": owner.active, "shop_count": 0}
+
+
+@router.get("/owners/")
+def list_owners(
+    session: Session = Depends(get_session),
+    _: dict = Depends(require_superadmin),
+):
+    owners = session.exec(select(Owner).order_by(Owner.created_at.desc())).all()
+    result = []
+    for owner in owners:
+        shop_count = len(session.exec(select(Shop).where(Shop.owner_id == owner.id)).all())
+        result.append({
+            "id": owner.id,
+            "name": owner.name,
+            "email": owner.email,
+            "active": owner.active,
+            "shop_count": shop_count,
+            "created_at": owner.created_at.isoformat(),
+        })
+    return result
+
+
+@router.patch("/owners/{owner_id}")
+def update_owner(
+    owner_id: int,
+    data: dict,
+    session: Session = Depends(get_session),
+    _: dict = Depends(require_superadmin),
+):
+    owner = session.get(Owner, owner_id)
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner not found")
+    if "active" in data:
+        owner.active = data["active"]
+    if "name" in data:
+        owner.name = data["name"]
+    session.add(owner)
+    session.commit()
+    session.refresh(owner)
+    return {"id": owner.id, "name": owner.name, "email": owner.email, "active": owner.active}
+
+
 # ── Platform stats ────────────────────────────────────────────────────────────
 
 @router.get("/stats")
@@ -150,14 +210,12 @@ def platform_stats(
     _: dict = Depends(require_superadmin),
 ):
     from app.models import Sale
+    owners = session.exec(select(Owner)).all()
     shops = session.exec(select(Shop)).all()
-    total_shops = len(shops)
-    active_shops = sum(1 for s in shops if s.active)
-    pro_shops = sum(1 for s in shops if s.plan == "pro")
     total_sales = len(session.exec(select(Sale)).all())
     return {
-        "total_shops": total_shops,
-        "active_shops": active_shops,
-        "pro_shops": pro_shops,
+        "total_owners": len(owners),
+        "active_owners": sum(1 for o in owners if o.active),
+        "total_shops": len(shops),
         "total_sales": total_sales,
     }

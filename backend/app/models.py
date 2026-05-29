@@ -14,6 +14,7 @@ class Shop(SQLModel, table=True):
     phone: Optional[str] = Field(default=None)
     plan: str = Field(default="free")  # "free", "pro"
     active: bool = Field(default=True)
+    owner_id: Optional[int] = Field(default=None, foreign_key="owner.id", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -43,6 +44,37 @@ class ShopUpdate(SQLModel):
     phone: Optional[str] = None
     plan: Optional[str] = None
     active: Optional[bool] = None
+
+
+# ── Owner ─────────────────────────────────────────────────────────────────────
+
+class Owner(SQLModel, table=True):
+    __tablename__ = "owner"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    email: str = Field(unique=True, index=True)
+    pin_hash: str
+    active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class OwnerCreate(SQLModel):
+    name: str
+    email: str
+    pin: str
+
+
+class OwnerRead(SQLModel):
+    id: int
+    name: str
+    email: str
+    active: bool
+    created_at: datetime
+
+
+class OwnerLogin(SQLModel):
+    email: str
+    pin: str
 
 
 # ── SuperAdmin ────────────────────────────────────────────────────────────────
