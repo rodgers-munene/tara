@@ -2,13 +2,12 @@ import os
 import re
 import bcrypt
 import jwt
-from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import require_owner
 from app.models import (
-    Owner, OwnerLogin,
+    Owner, OwnerCreate, OwnerLogin,
     Shop, ShopCreate, ShopUpdate, ShopRead,
     Staff, StaffCreate,
     Sale,
