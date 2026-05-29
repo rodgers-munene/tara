@@ -69,7 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!initialized) return;
     const isPublic = PUBLIC_PATHS.includes(pathname);
     const isAdmin = pathname.startsWith("/admin");
-    if (isAdmin) return;
+    const isOwner = pathname.startsWith("/owner");
+    if (isAdmin || isOwner) return;
     if (!user && !isPublic) {
       router.replace("/login");
     }
