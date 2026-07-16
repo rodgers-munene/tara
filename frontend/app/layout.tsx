@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
+import { SWRConfig } from "swr";
 import { AuthProvider } from "./components/AuthProvider";
 import { OfflineProvider } from "./components/OfflineProvider";
 import "./globals.css";
@@ -30,9 +31,18 @@ export default function RootLayout({
   return (
     <html lang="en" className={geist.variable}>
       <body className="min-h-svh flex flex-col">
-        <AuthProvider>
-          <OfflineProvider>{children}</OfflineProvider>
-        </AuthProvider>
+        <SWRConfig
+          value={{
+            revalidateOnFocus: true,
+            revalidateIfStale: true,
+            dedupingInterval: 4000,
+            errorRetryCount: 2,
+          }}
+        >
+          <AuthProvider>
+            <OfflineProvider>{children}</OfflineProvider>
+          </AuthProvider>
+        </SWRConfig>
       </body>
     </html>
   );

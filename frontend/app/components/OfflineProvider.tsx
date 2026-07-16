@@ -76,7 +76,7 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
           style={{ background: "var(--warning)" }}
         >
           <WifiOff size={13} />
-          Offline — sales will sync when reconnected
+          Offline, sales will sync when reconnected
           {queueSize > 0 && ` · ${queueSize} queued`}
         </div>
       )}

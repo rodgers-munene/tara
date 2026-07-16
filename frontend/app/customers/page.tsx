@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Plus, Search, X, ChevronRight, Loader2, Users,
   ArrowDownLeft, ArrowUpRight,
 } from "lucide-react";
 import NavBar from "../components/NavBar";
-import { api, fmtKES, type Customer, type CreditEntry } from "../../lib/api";
+import { api, useApi, fmtKES, type Customer, type CreditEntry } from "../../lib/api";
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" });
@@ -43,23 +43,13 @@ function CustomerDetailContent({
   onClose: () => void;
   onRefresh: (updated: Customer) => void;
 }) {
-  const [entries, setEntries] = useState<CreditEntry[]>([]);
-  const [loadingEntries, setLoadingEntries] = useState(true);
+  const { data: entries = [], isLoading: loadingEntries, mutate: mutateEntries } =
+    useApi<CreditEntry[]>(`/customers/${customer.id}/entries`);
   const [mode, setMode] = useState<null | "debt" | "payment">(null);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
-  const [balance, setBalance] = useState(customer.balance);
-
-  useEffect(() => {
-    api
-      .get<CreditEntry[]>(`/customers/${customer.id}/entries`)
-      .then((data) => {
-        setEntries(data);
-        setBalance(data.reduce((s, e) => s + e.amount, 0));
-      })
-      .finally(() => setLoadingEntries(false));
-  }, [customer.id]);
+  const balance = entries.reduce((s, e) => s + e.amount, 0);
 
   async function handleSubmit() {
     const val = parseFloat(amount);
@@ -72,9 +62,8 @@ function CustomerDetailContent({
         note: note.trim() || (mode === "payment" ? "Payment received" : undefined),
       });
       const newEntries = [entry, ...entries];
-      setEntries(newEntries);
+      mutateEntries(newEntries, { revalidate: false });
       const newBalance = newEntries.reduce((s, e) => s + e.amount, 0);
-      setBalance(newBalance);
       onRefresh({ ...customer, balance: newBalance });
       setMode(null);
       setAmount("");
@@ -341,21 +330,12 @@ function AddCustomerSheet(props: React.ComponentProps<typeof AddCustomerContent>
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: customers = [], isLoading: loading, mutate: mutateCustomers } = useApi<Customer[]>("/customers/");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Customer | null>(null);
   const [showAdd, setShowAdd] = useState(false);
 
   const panelOpen = !!selected || showAdd;
-
-  async function reload() {
-    const data = await api.get<Customer[]>("/customers/");
-    setCustomers(data);
-    setLoading(false);
-  }
-
-  useEffect(() => { reload(); }, []);
 
   const filtered = customers.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -496,7 +476,7 @@ export default function CustomersPage() {
             {showAdd ? (
               <AddCustomerContent
                 onSave={(c) => {
-                  setCustomers((prev) => [...prev, c].sort((a, b) => a.name.localeCompare(b.name)));
+                  mutateCustomers((prev = []) => [...prev, c].sort((a, b) => a.name.localeCompare(b.name)), { revalidate: false });
                   setShowAdd(false);
                 }}
                 onClose={closePanel}
@@ -507,7 +487,7 @@ export default function CustomersPage() {
                 customer={selected}
                 onClose={closePanel}
                 onRefresh={(updated) => {
-                  setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                  mutateCustomers((prev = []) => prev.map((c) => (c.id === updated.id ? updated : c)), { revalidate: false });
                   setSelected(updated);
                 }}
               />
@@ -524,7 +504,7 @@ export default function CustomersPage() {
             customer={selected}
             onClose={() => setSelected(null)}
             onRefresh={(updated) => {
-              setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+              mutateCustomers((prev = []) => prev.map((c) => (c.id === updated.id ? updated : c)), { revalidate: false });
               setSelected(updated);
             }}
           />
@@ -535,7 +515,7 @@ export default function CustomersPage() {
         <div className="lg:hidden">
           <AddCustomerSheet
             onSave={(c) => {
-              setCustomers((prev) => [...prev, c].sort((a, b) => a.name.localeCompare(b.name)));
+              mutateCustomers((prev = []) => [...prev, c].sort((a, b) => a.name.localeCompare(b.name)), { revalidate: false });
               setShowAdd(false);
             }}
             onClose={() => setShowAdd(false)}

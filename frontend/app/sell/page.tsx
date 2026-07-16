@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   Search, X, Plus, Minus, ChevronUp, Loader2, LogOut,
   Tag, CheckCircle2, Share2, Delete,
@@ -8,8 +8,9 @@ import {
 import NavBar from "../components/NavBar";
 import { useAuth } from "../components/AuthProvider";
 import { useOffline } from "../components/OfflineProvider";
-import { api, fmtKES, type Category, type Product, type Sale, type SaleCreate } from "../../lib/api";
+import { api, useApi, invalidateApi, fmtKES, type Category, type Product, type Sale, type SaleCreate } from "../../lib/api";
 import { enqueueSale } from "../../lib/offlineQueue";
+import { shareReceipt } from "../../lib/receipt";
 
 interface CartItem {
   product: Product;
@@ -44,7 +45,7 @@ function ProductTile({
   onAdd: () => void;
 }) {
   const outOfStock = product.stock === 0;
-  const lowStock = product.stock > 0 && product.stock <= 5;
+  const lowStock = product.stock > 0 && product.stock <= product.min_stock;
 
   return (
     <button
@@ -567,29 +568,12 @@ function ReceiptPreview({
   sale: Sale;
   onNewSale: () => void;
 }) {
+  const { shop } = useAuth();
   const isMpesa = sale.payment_method === "mpesa";
   const dateStr = new Date(sale.created_at).toLocaleString("en-KE", {
     dateStyle: "medium",
     timeStyle: "short",
   });
-
-  function shareWhatsApp() {
-    const items = sale.items
-      .map((i) => `${i.product_name} ×${i.quantity}  ${fmtKES(i.subtotal)}`)
-      .join("\n");
-    const method = isMpesa ? "M-Pesa" : "Cash";
-    const changeNote = sale.change_given > 0 ? `\nChange: ${fmtKES(sale.change_given)}` : "";
-    const refNote = sale.mpesa_ref ? `\nM-Pesa ref: ${sale.mpesa_ref}` : "";
-    const discNote = sale.discount > 0 ? `\nDiscount: -${fmtKES(sale.discount)}` : "";
-    const text =
-      `*Tara POS Receipt*\n${sale.receipt_number}\n${dateStr}\n\n` +
-      `${items}${discNote}\n` +
-      `────────────────\n` +
-      `*Total: ${fmtKES(sale.total)}*\n` +
-      `Payment: ${method}${refNote}${changeNote}\n\n` +
-      `Thank you!`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-  }
 
   return (
     <div
@@ -678,7 +662,10 @@ function ReceiptPreview({
           )}
         </div>
 
-        <p className="text-xs text-center" style={{ color: "var(--text-3)" }}>
+        <p className="text-xs text-center font-semibold" style={{ color: "var(--text-2)" }}>
+          {shop?.name ?? "Tara POS"}{shop?.phone ? ` · ${shop.phone}` : ""}
+        </p>
+        <p className="text-xs text-center mt-1" style={{ color: "var(--text-3)" }}>
           {dateStr} · {sale.cashier_name}
         </p>
       </div>
@@ -692,7 +679,7 @@ function ReceiptPreview({
         }}
       >
         <button
-          onClick={shareWhatsApp}
+          onClick={() => shareReceipt(sale, shop)}
           className="w-full flex items-center justify-center gap-2 rounded-xl font-semibold text-sm border-2"
           style={{
             height: 48,
@@ -745,8 +732,9 @@ function QueuedOverlay({ onNewSale }: { onNewSale: () => void }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function SellPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { data: categories = [], isLoading: catLoading } = useApi<Category[]>("/categories/");
+  const { data: products = [], isLoading: prodLoading } = useApi<Product[]>("/products/");
+  const loading = catLoading || prodLoading;
   const [activeCat, setActiveCat] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -755,7 +743,6 @@ export default function SellPage() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [offlineQueued, setOfflineQueued] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [saleError, setSaleError] = useState<string | null>(null);
   const [pendingPayload, setPendingPayload] = useState<SaleCreate | null>(null);
@@ -767,19 +754,6 @@ export default function SellPage() {
   for (const c of categories) {
     if (c.id && c.color) catColorMap[c.id] = c.color;
   }
-
-  useEffect(() => {
-    Promise.all([
-      api.get<Category[]>("/categories/"),
-      api.get<Product[]>("/products/"),
-    ])
-      .then(([cats, prods]) => {
-        setCategories(cats);
-        setProducts(prods);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
 
   const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
@@ -836,7 +810,7 @@ export default function SellPage() {
       setPayOpen(false);
       setPendingPayload(null);
       setCompletedSale(sale);
-      api.get<Product[]>("/products/").then(setProducts);
+      invalidateApi("/products");
     } catch (e: unknown) {
       const msg = (e as Error).message ?? "";
       const isNetwork = !msg || msg.includes("fetch") || msg.includes("network") || msg.includes("Failed to fetch");
@@ -848,7 +822,7 @@ export default function SellPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [setProducts]);
+  }, []);
 
   const handlePaymentComplete = useCallback(async (
     method: "cash" | "mpesa",

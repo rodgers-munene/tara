@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Delete, Loader2, Store, ArrowLeft, HelpCircle } from "lucide-react";
 import { api, type StaffMember, type ShopInfo } from "../../lib/api";
 import { useAuth } from "../components/AuthProvider";
+import AuthBackdrop from "../components/AuthBackdrop";
 
 const PIN_LENGTH = 4;
 
@@ -255,17 +256,21 @@ export default function LoginPage() {
 
   if (step === "loading") {
     return (
-      <div className="flex min-h-svh items-center justify-center" style={{ background: "var(--bg)" }}>
-        <Loader2 size={28} className="animate-spin" style={{ color: "var(--brand)" }} />
+      <div className="relative flex min-h-svh items-center justify-center">
+        <AuthBackdrop variant="staff" />
+        <Loader2 size={28} className="relative z-10 animate-spin" style={{ color: "var(--brand)" }} />
       </div>
     );
   }
 
   return (
-    <div
-      className="flex min-h-svh flex-col items-center justify-start px-5 py-10"
-      style={{ background: "var(--bg)" }}
-    >
+    <div className="relative flex min-h-svh flex-col items-center justify-start px-5 py-10">
+      <AuthBackdrop variant="staff" />
+
+      <div
+        className="relative z-10 w-full max-w-sm rounded-3xl p-6 sm:p-7 flex flex-col items-center"
+        style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1.5px solid var(--border)" }}
+      >
       <BrandHeader shopName={shopInfo?.name} />
 
       {step === "enter-code" && (
@@ -273,7 +278,7 @@ export default function LoginPage() {
       )}
 
       {step === "staff-list" && shopInfo && (
-        <div className="w-full max-w-sm">
+        <div className="w-full">
           <p className="text-sm font-medium text-center mb-5" style={{ color: "var(--text-2)" }}>
             Who&apos;s at the counter?
           </p>
@@ -284,7 +289,7 @@ export default function LoginPage() {
                 onClick={() => { setSelected(s); setPin(""); setError(""); setStep("enter-pin"); }}
                 className="flex items-center gap-4 w-full rounded-2xl px-4 py-3.5 text-left border-2 transition-all active:scale-98"
                 style={{
-                  background: "var(--surface)",
+                  background: "var(--surface-2)",
                   borderColor: "var(--border)",
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--brand)")}
@@ -314,10 +319,10 @@ export default function LoginPage() {
       )}
 
       {step === "enter-pin" && selected && (
-        <div className="w-full max-w-sm flex flex-col items-center">
+        <div className="w-full flex flex-col items-center">
           <button
             onClick={() => { setSelected(null); setPin(""); setError(""); setStep("staff-list"); }}
-            className="flex items-center gap-2 mb-6 text-sm font-medium"
+            className="flex items-center gap-2 mb-6 text-sm font-medium self-start"
             style={{ color: "var(--brand)" }}
           >
             <ArrowLeft size={14} /> Back
@@ -353,8 +358,9 @@ export default function LoginPage() {
           )}
         </div>
       )}
+      </div>
 
-      <div className="mt-auto pt-10 text-center">
+      <div className="relative z-10 mt-auto pt-10 text-center">
         <p className="text-xs" style={{ color: "var(--text-3)" }}>
           Shop owner?{" "}
           <a href="/owner/login" style={{ color: "var(--brand)", fontWeight: 500 }}>

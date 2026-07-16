@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Plus, Search, X, Package, Loader2, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import NavBar from "../components/NavBar";
-import { api, fmtKES, type Category, type Product } from "../../lib/api";
+import { useAuth } from "../components/AuthProvider";
+import { api, useApi, invalidateApi, fmtKES, type Category, type Product } from "../../lib/api";
 
 // ── Skeleton row ──────────────────────────────────────────────────────────────
 function SkeletonRow() {
@@ -35,6 +36,7 @@ function ProductFormContent({
   const [price, setPrice] = useState(initial ? String(initial.price) : "");
   const [buyingPrice, setBuyingPrice] = useState(initial?.buying_price ? String(initial.buying_price) : "");
   const [stock, setStock] = useState(initial ? String(initial.stock) : "0");
+  const [minStock, setMinStock] = useState(initial ? String(initial.min_stock) : "5");
   const [barcode, setBarcode] = useState(initial?.barcode ?? "");
   const [categoryId, setCategoryId] = useState<string>(
     initial?.category_id ? String(initial.category_id) : ""
@@ -55,6 +57,7 @@ function ProductFormContent({
         price: parseFloat(price),
         buying_price: buyingPrice ? parseFloat(buyingPrice) : 0,
         stock: parseInt(stock) || 0,
+        min_stock: parseInt(minStock) || 0,
         barcode: barcode.trim() || null,
         category_id: categoryId ? parseInt(categoryId) : null,
       };
@@ -174,21 +177,39 @@ function ProductFormContent({
           })()
         )}
 
-        <div>
-          <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
-            Stock (units)
-          </label>
-          <input
-            type="number"
-            inputMode="numeric"
-            value={stock}
-            onChange={(e) => setStock(e.target.value)}
-            placeholder="0"
-            className="w-full rounded-xl border px-4 text-sm outline-none transition-colors"
-            style={inputStyle}
-            onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+              Stock (units)
+            </label>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              placeholder="0"
+              className="w-full rounded-xl border px-4 text-sm outline-none transition-colors"
+              style={inputStyle}
+              onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+              Low stock alert at
+            </label>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={minStock}
+              onChange={(e) => setMinStock(e.target.value)}
+              placeholder="5"
+              className="w-full rounded-xl border px-4 text-sm outline-none transition-colors"
+              style={inputStyle}
+              onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+            />
+          </div>
         </div>
 
         <div>
@@ -349,28 +370,21 @@ function CategoryForm({ onSave, onClose }: { onSave: () => void; onClose: () => 
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { user } = useAuth();
+  const canEdit = user?.role === "owner";
+  const { data: categories = [] } = useApi<Category[]>("/categories/");
+  const { data: products = [], isLoading: loading } = useApi<Product[]>("/products/?active_only=false");
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [showAddCat, setShowAddCat] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
 
   const formOpen = showAdd || !!editing;
 
-  async function reload() {
-    const [cats, prods] = await Promise.all([
-      api.get<Category[]>("/categories/"),
-      api.get<Product[]>("/products/?active_only=false"),
-    ]);
-    setCategories(cats);
-    setProducts(prods);
-    setLoading(false);
+  function reload() {
+    return Promise.all([invalidateApi("/categories"), invalidateApi("/products")]);
   }
-
-  useEffect(() => { reload(); }, []);
 
   async function handleDelete(product: Product) {
     if (!confirm(`Remove "${product.name}" from inventory?`)) return;
@@ -387,7 +401,7 @@ export default function InventoryPage() {
   const catMap: Record<number, Category> = {};
   for (const c of categories) catMap[c.id] = c;
 
-  const lowStockCount = products.filter((p) => p.active && p.stock <= 5).length;
+  const lowStockCount = products.filter((p) => p.active && p.stock <= p.min_stock).length;
 
   const formProps = {
     initial: editing ?? undefined,
@@ -417,21 +431,25 @@ export default function InventoryPage() {
             {lowStockCount} low
           </span>
         )}
-        <button
-          onClick={() => setShowAddCat(true)}
-          className="text-xs font-medium px-3 h-8 rounded-lg border"
-          style={{ borderColor: "var(--border)", color: "var(--text-2)", background: "var(--surface-2)" }}
-        >
-          + Category
-        </button>
-        <button
-          onClick={() => { setEditing(null); setShowAdd(true); }}
-          className="flex items-center gap-1.5 text-sm font-semibold px-3 h-8 rounded-lg text-white"
-          style={{ background: "var(--brand)" }}
-        >
-          <Plus size={15} />
-          Product
-        </button>
+        {canEdit && (
+          <>
+            <button
+              onClick={() => setShowAddCat(true)}
+              className="text-xs font-medium px-3 h-8 rounded-lg border"
+              style={{ borderColor: "var(--border)", color: "var(--text-2)", background: "var(--surface-2)" }}
+            >
+              + Category
+            </button>
+            <button
+              onClick={() => { setEditing(null); setShowAdd(true); }}
+              className="flex items-center gap-1.5 text-sm font-semibold px-3 h-8 rounded-lg text-white"
+              style={{ background: "var(--brand)" }}
+            >
+              <Plus size={15} />
+              Product
+            </button>
+          </>
+        )}
       </header>
 
       {/* Search */}
@@ -512,7 +530,7 @@ export default function InventoryPage() {
               <p className="text-sm font-medium" style={{ color: "var(--text-3)" }}>
                 {search ? `No products matching "${search}"` : "No products yet"}
               </p>
-              {!search && (
+              {!search && canEdit && (
                 <button
                   onClick={() => setShowAdd(true)}
                   className="text-sm font-semibold px-4 py-2 rounded-xl text-white"
@@ -526,7 +544,7 @@ export default function InventoryPage() {
             <div style={{ background: "var(--surface)" }}>
               {filtered.map((p) => {
                 const cat = p.category_id ? catMap[p.category_id] : null;
-                const isLow = p.active && p.stock > 0 && p.stock <= 5;
+                const isLow = p.active && p.stock > 0 && p.stock <= p.min_stock;
                 const isOut = p.active && p.stock === 0;
                 return (
                   <div
@@ -584,26 +602,28 @@ export default function InventoryPage() {
                       })()}
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => setEditing(p)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
-                        style={{ color: "var(--text-3)" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--brand)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-3)")}
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(p)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
-                        style={{ color: "var(--text-3)" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--danger)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-3)")}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
+                    {canEdit && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => setEditing(p)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
+                          style={{ color: "var(--text-3)" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--brand)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-3)")}
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(p)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
+                          style={{ color: "var(--text-3)" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--danger)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-3)")}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

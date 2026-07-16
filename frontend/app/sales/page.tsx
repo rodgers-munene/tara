@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Receipt, ChevronDown, ChevronUp, Loader2, Search, X, RotateCcw, AlertTriangle } from "lucide-react";
+import { useState } from "react";
+import { Receipt, ChevronDown, ChevronUp, Loader2, Search, X, RotateCcw, AlertTriangle, Share2 } from "lucide-react";
 import NavBar from "../components/NavBar";
-import { api, fmtKES, type Sale, type SaleReturn } from "../../lib/api";
+import { useAuth } from "../components/AuthProvider";
+import { api, useApi, fmtKES, type Sale, type SaleReturn } from "../../lib/api";
+import { shareReceipt } from "../../lib/receipt";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-KE", {
@@ -193,6 +195,7 @@ function SaleRow({
 }: {
   sale: Sale;
 }) {
+  const { shop } = useAuth();
   const [open, setOpen] = useState(false);
   const [sale, setSale] = useState(initialSale);
   const [showReturnSheet, setShowReturnSheet] = useState(false);
@@ -317,10 +320,24 @@ function SaleRow({
               </div>
             </div>
 
+            <button
+              onClick={() => shareReceipt(sale, shop)}
+              className="mt-3 w-full rounded-xl border-2 font-semibold text-sm flex items-center justify-center gap-2"
+              style={{
+                height: 44,
+                borderColor: "#25D366",
+                color: "#25D366",
+                background: "transparent",
+              }}
+            >
+              <Share2 size={15} />
+              Share receipt
+            </button>
+
             {!sale.is_returned && (
               <button
                 onClick={() => setShowReturnSheet(true)}
-                className="mt-3 w-full rounded-xl border font-semibold text-sm flex items-center justify-center gap-2"
+                className="mt-2 w-full rounded-xl border font-semibold text-sm flex items-center justify-center gap-2"
                 style={{
                   height: 44,
                   borderColor: "var(--danger)",
@@ -362,14 +379,9 @@ function SaleRow({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function SalesPage() {
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: sales = [], isLoading: loading } = useApi<Sale[]>("/sales/");
   const [search, setSearch] = useState("");
   const [filterMethod, setFilterMethod] = useState<"all" | "cash" | "mpesa">("all");
-
-  useEffect(() => {
-    api.get<Sale[]>("/sales/").then(setSales).finally(() => setLoading(false));
-  }, []);
 
   const filtered = sales.filter((s) => {
     if (filterMethod !== "all" && s.payment_method !== filterMethod) return false;

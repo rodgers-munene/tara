@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { api } from "../../../lib/api";
 import { useOwnerAuth } from "../../components/OwnerAuthProvider";
+import AuthBackdrop from "../../components/AuthBackdrop";
 
 export default function OwnerLoginPage() {
   const { login } = useOwnerAuth();
@@ -30,10 +31,12 @@ export default function OwnerLoginPage() {
   }
 
   return (
-    <div
-      className="flex min-h-svh flex-col items-center justify-center px-6 py-12"
-      style={{ background: "var(--bg)" }}
-    >
+    <div className="relative flex min-h-svh flex-col items-center justify-center px-6 py-12">
+      <AuthBackdrop variant="owner" />
+      <div
+        className="relative z-10 w-full max-w-xs rounded-3xl p-7 flex flex-col items-center"
+        style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1.5px solid var(--border)" }}
+      >
       <div
         className="flex h-14 w-14 items-center justify-center rounded-2xl text-white text-2xl font-bold mb-6 shadow-md"
         style={{ background: "var(--brand)" }}
@@ -47,7 +50,7 @@ export default function OwnerLoginPage() {
         Sign in to manage your shops and staff
       </p>
 
-      <form onSubmit={handleSubmit} className="w-full max-w-xs flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
         <div>
           <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
             Email
@@ -72,9 +75,14 @@ export default function OwnerLoginPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
-            PIN
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-sm font-medium" style={{ color: "var(--text-2)" }}>
+              PIN
+            </label>
+            <a href="/owner/forgot-password" className="text-xs font-medium" style={{ color: "var(--brand)" }}>
+              Forgot PIN?
+            </a>
+          </div>
           <input
             type="password"
             inputMode="numeric"
@@ -125,6 +133,7 @@ export default function OwnerLoginPage() {
           Go to staff login
         </a>
       </p>
+      </div>
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import useSWR, { SWRConfiguration, mutate as globalMutate } from "swr";
+
 // All browser API calls go through the /api proxy route to avoid CORS errors
 // when Render's free-tier proxy returns 502s before FastAPI starts.
 const BASE = typeof window !== "undefined"
@@ -19,7 +21,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body?.detail ?? `Request failed: ${res.status}`);
+    const message = body?.detail ?? `Request failed: ${res.status}`;
+    if (res.status === 402 && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("tara:subscription-blocked", { detail: { message } }));
+    }
+    throw new Error(message);
   }
   if (res.status === 204) return undefined as T;
   return res.json();
@@ -34,6 +40,19 @@ export const api = {
   delete: (path: string) => request<void>(path, { method: "DELETE" }),
 };
 
+// Cached GET for staff-facing pages. Serves stale-while-revalidate data from
+// the shared SWR cache so navigating back to a page shows instant data
+// instead of a fresh loading spinner, while quietly refetching in the background.
+export function useApi<T>(path: string | null, config?: SWRConfiguration) {
+  return useSWR<T>(path, (p: string) => request<T>(p), config);
+}
+
+// Revalidates every cached GET whose key starts with `prefix`, e.g. after a
+// mutation that affects data fetched by multiple pages (products, categories).
+export function invalidateApi(prefix: string) {
+  return globalMutate((key) => typeof key === "string" && key.startsWith(prefix));
+}
+
 // --- Core Types ---
 
 export interface StaffMember {
@@ -46,8 +65,13 @@ export interface ShopInfo {
   id: number;
   name: string;
   slug: string;
-  plan: string;
   staff: StaffMember[];
+}
+
+export interface ShopBrief {
+  id: number;
+  name: string;
+  phone: string | null;
 }
 
 export interface Category {
@@ -62,6 +86,7 @@ export interface Product {
   price: number;
   buying_price: number;
   stock: number;
+  min_stock: number;
   barcode: string | null;
   category_id: number | null;
   active: boolean;
@@ -137,6 +162,17 @@ export interface LowStockItem {
   stock: number;
 }
 
+export interface RecentTransaction {
+  id: number;
+  receipt_number: string;
+  total: number;
+  payment_method: "cash" | "mpesa";
+  cashier_name: string | null;
+  item_count: number;
+  is_returned: boolean;
+  created_at: string;
+}
+
 export interface DashboardStats {
   today_total: number;
   today_count: number;
@@ -150,6 +186,8 @@ export interface DashboardStats {
   top_products: TopProduct[];
   low_stock_count: number;
   low_stock_items: LowStockItem[];
+  total_products: number;
+  recent_transactions: RecentTransaction[];
 }
 
 // --- Customer / Mkopo Types ---

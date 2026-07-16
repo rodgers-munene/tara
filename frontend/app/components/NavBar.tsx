@@ -25,7 +25,7 @@ export default function NavBar() {
       {/* top header — mobile */}
       <header
         className="fixed top-0 left-0 right-0 z-30 flex items-center px-4 h-12 border-b lg:hidden"
-        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+        style={{ background: "var(--sidebar-bg)", borderColor: "var(--sidebar-hover)" }}
       >
         <div className="flex items-center gap-2 flex-1">
           <div
@@ -34,7 +34,7 @@ export default function NavBar() {
           >
             T
           </div>
-          <span className="font-semibold text-sm" style={{ color: "var(--text)" }}>
+          <span className="font-semibold text-sm" style={{ color: "var(--sidebar-text)" }}>
             Tara POS
           </span>
         </div>
@@ -44,7 +44,7 @@ export default function NavBar() {
             <button
               onClick={() => setShowLogout((v) => !v)}
               className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
-              style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
+              style={{ background: "var(--sidebar-active)", color: "#fff" }}
             >
               {user.name.charAt(0).toUpperCase()}
             </button>
@@ -81,8 +81,8 @@ export default function NavBar() {
       <nav
         className="fixed bottom-0 left-0 right-0 z-30 flex border-t lg:hidden"
         style={{
-          background: "var(--surface)",
-          borderColor: "var(--border)",
+          background: "var(--sidebar-bg)",
+          borderColor: "var(--sidebar-hover)",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
@@ -93,7 +93,7 @@ export default function NavBar() {
               key={href}
               href={href}
               className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors"
-              style={{ color: active ? "var(--brand)" : "var(--text-3)" }}
+              style={{ color: active ? "var(--sidebar-active)" : "var(--sidebar-text-dim)" }}
             >
               <Icon
                 size={20}
@@ -108,21 +108,18 @@ export default function NavBar() {
 
       {/* sidebar — desktop */}
       <aside
-        className="hidden lg:flex fixed left-0 top-0 bottom-0 w-56 flex-col border-r z-30"
-        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+        className="hidden lg:flex fixed left-0 top-0 bottom-0 w-56 flex-col z-30"
+        style={{ background: "var(--sidebar-bg)" }}
       >
         {/* Brand */}
-        <div
-          className="flex items-center gap-2.5 px-5 h-16 border-b flex-shrink-0"
-          style={{ borderColor: "var(--border)" }}
-        >
+        <div className="flex items-center gap-2.5 px-5 h-16 shrink-0">
           <div
             className="flex h-8 w-8 items-center justify-center rounded-lg text-white text-sm font-bold"
             style={{ background: "var(--brand)" }}
           >
             T
           </div>
-          <span className="font-semibold text-base" style={{ color: "var(--text)" }}>
+          <span className="font-semibold text-base" style={{ color: "var(--sidebar-text)" }}>
             Tara POS
           </span>
         </div>
@@ -135,10 +132,10 @@ export default function NavBar() {
               <Link
                 key={href}
                 href={href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active ? "" : "hover:bg-[var(--sidebar-hover)]"}`}
                 style={{
-                  background: active ? "var(--brand-light)" : "transparent",
-                  color: active ? "var(--brand-dark)" : "var(--text-2)",
+                  background: active ? "var(--sidebar-active)" : undefined,
+                  color: active ? "#fff" : "var(--sidebar-text-dim)",
                 }}
               >
                 <Icon size={18} strokeWidth={active ? 2.5 : 1.8} />
@@ -150,31 +147,28 @@ export default function NavBar() {
 
         {/* Logged-in user + logout */}
         {user && (
-          <div
-            className="flex items-center gap-3 px-4 py-4 border-t flex-shrink-0"
-            style={{ borderColor: "var(--border)" }}
-          >
+          <div className="flex items-center gap-3 px-4 py-4 flex-shrink-0" style={{ borderTop: "1px solid var(--sidebar-hover)" }}>
             <div
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold"
-              style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+              style={{ background: "var(--sidebar-active)" }}
             >
               {user.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold truncate" style={{ color: "var(--text)" }}>
+              <p className="text-xs font-semibold truncate" style={{ color: "var(--sidebar-text)" }}>
                 {user.name}
               </p>
-              <p className="text-[11px] capitalize" style={{ color: "var(--text-3)" }}>
+              <p className="text-[11px] capitalize" style={{ color: "var(--sidebar-text-dim)" }}>
                 {user.role}
               </p>
             </div>
             <button
               onClick={logout}
               className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg transition-colors"
-              style={{ color: "var(--text-3)" }}
+              style={{ color: "var(--sidebar-text-dim)" }}
               title="Sign out"
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--danger)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-3)")}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#fca5a5")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--sidebar-text-dim)")}
             >
               <LogOut size={15} />
             </button>

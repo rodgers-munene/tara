@@ -1,51 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
-  Loader2, Plus, Store, X, Users, LogOut, Trash2,
-  UserPlus, CheckCircle, XCircle, TrendingUp, ShoppingBag, Receipt,
+  Loader2, Plus, Store, X, Users, LogOut,
+  CheckCircle, XCircle, TrendingUp, ShoppingBag, Receipt, Zap, MoreVertical,
 } from "lucide-react";
 import { useOwnerAuth } from "../../components/OwnerAuthProvider";
-
-const BASE = "/api";
-
-async function ownerRequest<T>(path: string, token: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(init?.headers as Record<string, string>),
-    },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.detail ?? `Request failed: ${res.status}`);
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json();
-}
-
-interface Shop {
-  id: number;
-  name: string;
-  slug: string;
-  plan: string;
-  active: boolean;
-  staff_count: number;
-  today_sales: number;
-  today_revenue: number;
-  week_revenue: number;
-  total_sales: number;
-  manager_id?: number;
-  created_at: string;
-}
-
-interface StaffMember {
-  id: number;
-  name: string;
-  role: string;
-}
+import { ownerRequest, useOwnerApi, Shop, daysLeft, subscriptionLabel, UpgradeModal, StaffPanel } from "../shared";
 
 interface OwnerStats {
   total_shops: number;
@@ -66,7 +28,7 @@ function CreateShopModal({
   onClose: () => void;
 }) {
   const [form, setForm] = useState({
-    name: "", email: "", phone: "", plan: "free", owner_name: "", owner_pin: "",
+    name: "", email: "", phone: "", owner_name: "", owner_pin: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -90,7 +52,6 @@ function CreateShopModal({
           name: form.name.trim(),
           email: form.email.trim() || null,
           phone: form.phone.trim() || null,
-          plan: form.plan,
           owner_name: form.owner_name.trim(),
           owner_pin: form.owner_pin,
         }),
@@ -149,19 +110,6 @@ function CreateShopModal({
             </div>
           ))}
 
-          <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-2)" }}>Plan</label>
-            <select
-              value={form.plan}
-              onChange={(e) => set("plan", e.target.value)}
-              className="w-full rounded-xl border px-3 text-sm outline-none"
-              style={inputStyle}
-            >
-              <option value="free">Free</option>
-              <option value="pro">Pro</option>
-            </select>
-          </div>
-
           <p className="text-xs font-semibold uppercase tracking-wide mt-1" style={{ color: "var(--text-3)" }}>
             Shop manager (POS login)
           </p>
@@ -213,334 +161,133 @@ function CreateShopModal({
   );
 }
 
-// ── Staff panel ───────────────────────────────────────────────────────────────
-
-function StaffPanel({
-  shop,
-  token,
-  onClose,
-}: {
-  shop: Shop;
-  token: string;
-  onClose: () => void;
-}) {
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: "", pin: "", role: "cashier" });
-  const [saving, setSaving] = useState(false);
-  const [removing, setRemoving] = useState<number | null>(null);
-  const [error, setError] = useState("");
-
-  async function loadStaff() {
-    try {
-      const data = await ownerRequest<StaffMember[]>(`/owner/shops/${shop.id}/staff`, token);
-      setStaff(data);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { loadStaff(); }, []);
-
-  async function addStaff(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.name.trim() || form.pin.length < 4) {
-      setError("Name and 4-digit PIN required.");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      const s = await ownerRequest<StaffMember>(`/owner/shops/${shop.id}/staff`, token, {
-        method: "POST",
-        body: JSON.stringify({ name: form.name.trim(), pin: form.pin, role: form.role }),
-      });
-      setStaff((prev) => [...prev, s]);
-      setForm({ name: "", pin: "", role: "cashier" });
-      setShowAdd(false);
-    } catch (err: unknown) {
-      setError((err as Error).message ?? "Failed to add staff");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function removeStaff(id: number) {
-    setRemoving(id);
-    try {
-      await ownerRequest(`/owner/shops/${shop.id}/staff/${id}`, token, { method: "DELETE" });
-      setStaff((prev) => prev.filter((s) => s.id !== id));
-    } finally {
-      setRemoving(null);
-    }
-  }
-
-  const inputStyle = {
-    borderColor: "var(--border)",
-    background: "var(--surface-2)",
-    color: "var(--text)",
-    height: 44,
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.5)" }}
-    >
-      <div
-        className="w-full max-w-md rounded-3xl flex flex-col"
-        style={{
-          background: "var(--surface)",
-          border: "1.5px solid var(--border)",
-          maxHeight: "85svh",
-        }}
-      >
-        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: "var(--border)" }}>
-          <div>
-            <p className="font-bold" style={{ color: "var(--text)" }}>{shop.name}</p>
-            <p className="text-xs" style={{ color: "var(--text-3)" }}>Staff management</p>
-          </div>
-          <button onClick={onClose} style={{ color: "var(--text-3)" }}><X size={20} /></button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-2">
-          {loading ? (
-            <div className="flex h-20 items-center justify-center">
-              <Loader2 size={20} className="animate-spin" style={{ color: "var(--brand)" }} />
-            </div>
-          ) : staff.length === 0 ? (
-            <p className="text-sm text-center py-6" style={{ color: "var(--text-3)" }}>No staff yet</p>
-          ) : (
-            staff.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center gap-3 rounded-2xl p-3"
-                style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-              >
-                <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                  style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
-                >
-                  {s.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{s.name}</p>
-                  <p className="text-xs capitalize" style={{ color: "var(--text-3)" }}>
-                    {s.role} · Login ID: <span className="font-mono font-bold">{s.id}</span>
-                  </p>
-                </div>
-                {removing === s.id ? (
-                  <Loader2 size={15} className="animate-spin shrink-0" style={{ color: "var(--text-3)" }} />
-                ) : (
-                  <button
-                    onClick={() => removeStaff(s.id)}
-                    className="shrink-0 flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-                    style={{ color: "var(--text-3)" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "var(--danger)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-3)")}
-                    title="Remove"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="px-6 pb-6 pt-2 shrink-0 border-t" style={{ borderColor: "var(--border)" }}>
-          {!showAdd ? (
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold"
-              style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
-            >
-              <UserPlus size={15} /> Add staff member
-            </button>
-          ) : (
-            <form onSubmit={addStaff} className="flex flex-col gap-2.5 pt-2">
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    placeholder="Name"
-                    className="w-full rounded-xl border px-3 text-sm outline-none"
-                    style={inputStyle}
-                    onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
-                    onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-                  />
-                </div>
-                <div style={{ width: 90 }}>
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    value={form.pin}
-                    onChange={(e) => setForm((f) => ({ ...f, pin: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
-                    placeholder="PIN"
-                    className="w-full rounded-xl border px-3 text-sm outline-none text-center tracking-widest font-bold"
-                    style={inputStyle}
-                    onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
-                    onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-                  />
-                </div>
-              </div>
-              <select
-                value={form.role}
-                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-                className="w-full rounded-xl border px-3 text-sm outline-none"
-                style={inputStyle}
-              >
-                <option value="cashier">Cashier</option>
-                <option value="owner">Manager</option>
-              </select>
-
-              {error && (
-                <p className="text-xs rounded-xl px-3 py-2"
-                  style={{ background: "var(--danger-light)", color: "var(--danger)" }}>
-                  {error}
-                </p>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowAdd(false); setError(""); }}
-                  className="flex-1 rounded-xl text-sm font-medium py-2.5"
-                  style={{ background: "var(--surface-2)", color: "var(--text-2)" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-1.5 disabled:opacity-60"
-                  style={{ background: "var(--brand)" }}
-                >
-                  {saving && <Loader2 size={13} className="animate-spin" />}
-                  Add
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Shop card ─────────────────────────────────────────────────────────────────
 
 function ShopCard({
   shop,
   onToggleActive,
   onManageStaff,
+  onUpgrade,
   toggling,
 }: {
   shop: Shop;
   onToggleActive: (shop: Shop) => void;
   onManageStaff: (shop: Shop) => void;
+  onUpgrade: (shop: Shop) => void;
   toggling: boolean;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const subStatus = subscriptionLabel(shop);
+  const needsAttention = shop.subscription_status !== "active" || (daysLeft(shop.subscription_ends_at) ?? 1) < 0;
   return (
     <div
-      className="rounded-2xl overflow-hidden flex flex-col"
+      className="rounded-2xl flex flex-col"
       style={{
         background: "var(--surface)",
         border: "1.5px solid var(--border)",
         opacity: shop.active ? 1 : 0.65,
       }}
     >
-      {/* Status accent bar */}
-      <div style={{ height: 3, background: shop.active ? "var(--brand)" : "var(--border)" }} />
-
       <div className="p-5 flex flex-col gap-4">
-        {/* Top row — avatar + name + badges */}
-        <div className="flex items-start gap-4">
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-bold"
-            style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
-          >
-            {shop.name.charAt(0).toUpperCase()}
-          </div>
-
-          <div className="flex-1 min-w-0 pt-0.5">
-            <p className="font-bold text-base leading-tight" style={{ color: "var(--text)" }}>
-              {shop.name}
-            </p>
-            <p className="text-xs font-mono mt-0.5 truncate" style={{ color: "var(--text-3)" }}>
-              {shop.slug}
-            </p>
-            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              <span
-                className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
-                style={{
-                  background: shop.plan === "pro" ? "var(--brand)" : "var(--surface-2)",
-                  color: shop.plan === "pro" ? "#fff" : "var(--text-3)",
-                }}
-              >
-                {shop.plan}
-              </span>
-              <span
-                className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
-                style={{
-                  background: shop.active ? "var(--brand-light)" : "var(--surface-2)",
-                  color: shop.active ? "var(--brand-dark)" : "var(--text-3)",
-                }}
-              >
-                {shop.active ? "Active" : "Inactive"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { label: "Today", value: `KES ${shop.today_revenue.toLocaleString("en-KE", { maximumFractionDigits: 0 })}`, sub: `${shop.today_sales} sale${shop.today_sales !== 1 ? "s" : ""}` },
-            { label: "This week", value: `KES ${shop.week_revenue.toLocaleString("en-KE", { maximumFractionDigits: 0 })}` },
-            { label: "Staff", value: String(shop.staff_count), sub: "members" },
-          ].map(({ label, value, sub }) => (
+        {/* Top row — avatar + name + badges + menu */}
+        <div className="flex items-start gap-3">
+          <Link href={`/owner/shops/${shop.id}`} className="flex flex-1 min-w-0 items-start gap-4">
             <div
-              key={label}
-              className="rounded-xl px-3 py-2.5 flex flex-col"
-              style={{ background: "var(--surface-2)" }}
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-bold"
+              style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
             >
-              <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-3)" }}>{label}</p>
-              <p className="text-sm font-bold mt-0.5 leading-tight" style={{ color: "var(--text)" }}>{value}</p>
-              {sub && <p className="text-[10px] mt-0.5" style={{ color: "var(--text-3)" }}>{sub}</p>}
+              {shop.name.charAt(0).toUpperCase()}
             </div>
-          ))}
+
+            <div className="flex-1 min-w-0 pt-0.5">
+              <p className="font-bold text-base leading-tight truncate" style={{ color: "var(--text)" }} title={shop.name}>
+                {shop.name}
+              </p>
+              <p className="text-xs font-mono mt-0.5 truncate" style={{ color: "var(--text-3)" }}>
+                {shop.slug}
+              </p>
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                <span
+                  className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
+                  style={{
+                    background: shop.plan !== "free" ? "var(--brand)" : "var(--surface-2)",
+                    color: shop.plan !== "free" ? "#fff" : "var(--text-3)",
+                  }}
+                >
+                  {shop.plan}
+                </span>
+                <span
+                  className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
+                  style={{
+                    background: shop.active ? "var(--brand-light)" : "var(--surface-2)",
+                    color: shop.active ? "var(--brand-dark)" : "var(--text-3)",
+                  }}
+                >
+                  {shop.active ? "Active" : "Inactive"}
+                </span>
+              </div>
+              <p className="text-xs font-medium mt-2" style={{ color: subStatus.color }}>
+                {subStatus.text}
+              </p>
+            </div>
+          </Link>
+
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg"
+              style={{ color: "var(--text-3)" }}
+              aria-label="Shop options"
+            >
+              <MoreVertical size={18} />
+            </button>
+
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div
+                  className="absolute right-0 top-9 z-50 rounded-xl shadow-lg border min-w-44 p-1"
+                  style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+                >
+                  <button
+                    onClick={() => { setMenuOpen(false); onToggleActive(shop); }}
+                    disabled={toggling}
+                    className="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+                    style={{ color: shop.active ? "var(--danger)" : "var(--brand-dark)" }}
+                  >
+                    {toggling ? (
+                      <Loader2 size={14} className="animate-spin shrink-0" />
+                    ) : shop.active ? (
+                      <XCircle size={14} className="shrink-0" />
+                    ) : (
+                      <CheckCircle size={14} className="shrink-0" />
+                    )}
+                    {shop.active ? "Disable shop" : "Enable shop"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Actions */}
         <div className="flex gap-2">
           <button
             onClick={() => onManageStaff(shop)}
-            className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white flex items-center justify-center gap-2"
+            className="flex-1 min-w-0 rounded-xl py-2.5 text-sm font-semibold text-white flex items-center justify-center gap-2"
             style={{ background: "var(--brand)" }}
           >
-            <Users size={14} /> Manage Staff
+            <Users size={14} className="shrink-0" /> <span className="truncate">Manage staff</span>
           </button>
           <button
-            onClick={() => onToggleActive(shop)}
-            disabled={toggling}
-            className="rounded-xl px-3.5 py-2.5 text-sm font-medium flex items-center gap-1.5"
+            onClick={() => onUpgrade(shop)}
+            className="flex-1 min-w-0 rounded-xl py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5"
             style={{
-              background: "var(--surface-2)",
-              color: shop.active ? "var(--danger)" : "var(--brand)",
+              background: needsAttention ? "var(--danger-light)" : "var(--surface-2)",
+              color: needsAttention ? "var(--danger)" : "var(--text-2)",
             }}
           >
-            {toggling ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : shop.active ? (
-              <XCircle size={14} />
-            ) : (
-              <CheckCircle size={14} />
-            )}
-            {shop.active ? "Disable" : "Enable"}
+            <Zap size={14} className="shrink-0" /> {needsAttention ? "Renew" : "Upgrade"}
           </button>
         </div>
       </div>
@@ -585,13 +332,15 @@ function StatCard({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function OwnerDashboard() {
-  const { owner, token, logout } = useOwnerAuth();
-  const [shops, setShops] = useState<Shop[]>([]);
-  const [stats, setStats] = useState<OwnerStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { owner, token } = useOwnerAuth();
+  const { data: shops = [], isLoading: shopsLoading, mutate: mutateShops } = useOwnerApi<Shop[]>("/owner/shops/", token);
+  const { data: stats, isLoading: statsLoading, mutate: mutateStats } = useOwnerApi<OwnerStats>("/owner/stats", token);
+  const loading = shopsLoading || statsLoading;
   const [showCreate, setShowCreate] = useState(false);
   const [staffShop, setStaffShop] = useState<Shop | null>(null);
+  const [upgradeShop, setUpgradeShop] = useState<Shop | null>(null);
   const [toggling, setToggling] = useState<number | null>(null);
+  const [verifyBanner, setVerifyBanner] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -600,21 +349,41 @@ export default function OwnerDashboard() {
     return "Good evening";
   })();
 
-  async function load() {
-    if (!token) return;
-    try {
-      const [s, st] = await Promise.all([
-        ownerRequest<Shop[]>("/owner/shops/", token),
-        ownerRequest<OwnerStats>("/owner/stats", token),
-      ]);
-      setShops(s);
-      setStats(st);
-    } finally {
-      setLoading(false);
-    }
+  function load() {
+    return Promise.all([mutateShops(), mutateStats()]);
   }
 
-  useEffect(() => { load(); }, [token]);
+  // Paystack redirects back here with ?reference=... after checkout. Verify
+  // immediately for fast UI feedback — the webhook is the real source of truth
+  // and may land a moment later (or, for local dev, may never reach us).
+  useEffect(() => {
+    if (!token) return;
+    const params = new URLSearchParams(window.location.search);
+    const reference = params.get("reference") || params.get("trxref");
+    if (!reference) return;
+
+    (async () => {
+      try {
+        const result = await ownerRequest<{ verified: boolean }>(
+          `/owner/checkout/verify?reference=${encodeURIComponent(reference)}`,
+          token,
+        );
+        if (result.verified) {
+          setVerifyBanner({ type: "success", message: "Payment confirmed, subscription activated!" });
+          load();
+        } else {
+          setVerifyBanner({
+            type: "error",
+            message: "Payment not confirmed yet. If you completed payment, check back in a minute.",
+          });
+        }
+      } catch (err: unknown) {
+        setVerifyBanner({ type: "error", message: (err as Error).message ?? "Could not verify payment" });
+      } finally {
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    })();
+  }, [token]);
 
   async function toggleActive(shop: Shop) {
     if (!token) return;
@@ -624,7 +393,7 @@ export default function OwnerDashboard() {
         method: "PATCH",
         body: JSON.stringify({ active: !shop.active }),
       });
-      setShops((prev) => prev.map((s) => s.id === shop.id ? { ...s, active: !s.active } : s));
+      mutateShops((prev = []) => prev.map((s) => s.id === shop.id ? { ...s, active: !s.active } : s), { revalidate: false });
     } finally {
       setToggling(null);
     }
@@ -633,32 +402,24 @@ export default function OwnerDashboard() {
   if (!owner) return null;
 
   return (
-    <div className="min-h-svh" style={{ background: "var(--bg)" }}>
-      {/* Header */}
-      <header
-        className="sticky top-0 z-20 flex items-center gap-3 px-5 h-14 border-b"
-        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-      >
-        <div
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-white text-sm font-bold"
-          style={{ background: "var(--brand)" }}
-        >
-          T
-        </div>
-        <span className="font-semibold text-sm flex-1" style={{ color: "var(--text)" }}>
-          My Shops
-        </span>
-        <button
-          onClick={logout}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-opacity hover:opacity-70"
-          style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
-          title="Sign out"
-        >
-          {owner.name.charAt(0).toUpperCase()}
-        </button>
-      </header>
+    <>
+      <div className="min-h-svh" style={{ background: "var(--bg)" }}>
+      <main className="w-full px-4 py-6 lg:px-10 lg:py-10 flex flex-col gap-6 pb-10">
 
-      <main className="max-w-2xl mx-auto px-4 py-6 flex flex-col gap-6 pb-10">
+        {verifyBanner && (
+          <div
+            className="rounded-2xl px-4 py-3 text-sm font-medium flex items-center justify-between gap-3"
+            style={{
+              background: verifyBanner.type === "success" ? "var(--brand-light)" : "var(--danger-light)",
+              color: verifyBanner.type === "success" ? "var(--brand-dark)" : "var(--danger)",
+            }}
+          >
+            <span>{verifyBanner.message}</span>
+            <button onClick={() => setVerifyBanner(null)} style={{ color: "inherit" }}>
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {/* Greeting */}
         <div className="pt-1">
@@ -674,7 +435,7 @@ export default function OwnerDashboard() {
 
         {/* Stats */}
         {stats && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard label="Total shops" value={stats.total_shops} icon={Store} />
             <StatCard label="Active" value={stats.active_shops} icon={CheckCircle} />
             <StatCard label="Staff" value={stats.total_staff} icon={Users} />
@@ -725,13 +486,14 @@ export default function OwnerDashboard() {
               </button>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] lg:gap-4">
               {shops.map((shop) => (
                 <ShopCard
                   key={shop.id}
                   shop={shop}
                   onToggleActive={toggleActive}
                   onManageStaff={setStaffShop}
+                  onUpgrade={setUpgradeShop}
                   toggling={toggling === shop.id}
                 />
               ))}
@@ -739,15 +501,17 @@ export default function OwnerDashboard() {
           )}
         </div>
       </main>
+      </div>
 
       {showCreate && token && (
         <CreateShopModal
           token={token}
           onCreated={(shop) => {
-            setShops((prev) => [shop, ...prev]);
-            setStats((prev) => prev
+            mutateShops((prev = []) => [shop, ...prev], { revalidate: false });
+            mutateStats((prev) => prev
               ? { ...prev, total_shops: prev.total_shops + 1, active_shops: prev.active_shops + 1, total_staff: prev.total_staff + 1 }
-              : prev
+              : prev,
+              { revalidate: false }
             );
             setShowCreate(false);
           }}
@@ -762,6 +526,14 @@ export default function OwnerDashboard() {
           onClose={() => setStaffShop(null)}
         />
       )}
-    </div>
+
+      {upgradeShop && token && (
+        <UpgradeModal
+          shop={upgradeShop}
+          token={token}
+          onClose={() => setUpgradeShop(null)}
+        />
+      )}
+    </>
   );
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Loader2, Calculator } from "lucide-react";
 import NavBar from "../components/NavBar";
 import { useAuth } from "../components/AuthProvider";
-import { api, fmtKES, type DayCloseSummary } from "../../lib/api";
+import { api, useApi, fmtKES, type DayCloseSummary } from "../../lib/api";
 
 function InputField({
   label,
@@ -41,21 +41,13 @@ function InputField({
 export default function ClosePage() {
   const router = useRouter();
   const { user } = useAuth();
-  const [summary, setSummary] = useState<DayCloseSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: summary, isLoading: loading } = useApi<DayCloseSummary>("/day-close/today");
   const [openingCash, setOpeningCash] = useState("");
   const [closingCash, setClosingCash] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    api
-      .get<DayCloseSummary>("/day-close/today")
-      .then(setSummary)
-      .finally(() => setLoading(false));
-  }, []);
 
   const opening = parseFloat(openingCash) || 0;
   const closing = parseFloat(closingCash) || 0;

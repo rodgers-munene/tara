@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   TrendingUp, ShoppingCart, Banknote, Smartphone,
-  AlertTriangle, Package, ChevronRight, Loader2,
+  AlertTriangle, Package, ChevronRight, Loader2, Receipt, RotateCcw,
 } from "lucide-react";
 import NavBar from "../components/NavBar";
 import { useAuth } from "../components/AuthProvider";
-import { api, fmtKES, type DashboardStats } from "../../lib/api";
+import { useApi, fmtKES, type DashboardStats } from "../../lib/api";
 
 // ── Week bar chart ────────────────────────────────────────────────────────────
 function WeekChart({ data }: { data: DashboardStats["week_chart"] }) {
@@ -117,15 +116,7 @@ function DashboardSkeleton() {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api
-      .get<DashboardStats>("/dashboard/")
-      .then(setStats)
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: stats, isLoading: loading } = useApi<DashboardStats>("/dashboard/");
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -198,6 +189,31 @@ export default function DashboardPage() {
                 icon={Banknote}
               />
             </div>
+
+            {/* Total products */}
+            <Link
+              href="/inventory"
+              className="flex items-center justify-between rounded-2xl px-4 py-3.5"
+              style={{ background: "var(--surface)", border: "1.5px solid var(--border)" }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-xl"
+                  style={{ background: "var(--brand-light)" }}
+                >
+                  <Package size={18} style={{ color: "var(--brand-dark)" }} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                    {stats.total_products} product{stats.total_products !== 1 ? "s" : ""} in stock
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--text-3)" }}>
+                    View &amp; manage inventory
+                  </p>
+                </div>
+              </div>
+              <ChevronRight size={18} style={{ color: "var(--text-3)" }} />
+            </Link>
 
             {/* Payment split */}
             <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: "var(--surface)", border: "1.5px solid var(--border)" }}>
@@ -276,6 +292,67 @@ export default function DashboardPage() {
                       {fmtKES(p.revenue)}
                     </span>
                   </div>
+                ))}
+              </div>
+            )}
+
+            {/* Recent transactions */}
+            {stats.recent_transactions.length > 0 && (
+              <div
+                className="rounded-2xl overflow-hidden"
+                style={{ background: "var(--surface)", border: "1.5px solid var(--border)" }}
+              >
+                <div className="px-4 py-3 border-b flex items-center justify-between gap-2" style={{ borderColor: "var(--border)" }}>
+                  <div className="flex items-center gap-2">
+                    <Receipt size={16} style={{ color: "var(--brand-dark)" }} />
+                    <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                      Recent transactions
+                    </p>
+                  </div>
+                  <Link href="/sales" className="text-xs font-semibold" style={{ color: "var(--brand-dark)" }}>
+                    View all
+                  </Link>
+                </div>
+                {stats.recent_transactions.map((t) => (
+                  <Link
+                    key={t.id}
+                    href="/sales"
+                    className="flex items-center gap-3 px-4 py-3 border-b last:border-0"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    <div
+                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
+                      style={{ background: t.payment_method === "mpesa" ? "var(--mpesa-light)" : "var(--brand-light)" }}
+                    >
+                      {t.payment_method === "mpesa" ? (
+                        <Smartphone size={14} style={{ color: "var(--mpesa)" }} />
+                      ) : (
+                        <Banknote size={14} style={{ color: "var(--brand-dark)" }} />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>
+                        {t.receipt_number}
+                        {t.is_returned && (
+                          <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-bold" style={{ color: "var(--danger)" }}>
+                            <RotateCcw size={10} /> Returned
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--text-3)" }}>
+                        {t.item_count} item{t.item_count !== 1 ? "s" : ""}
+                        {t.cashier_name ? ` · ${t.cashier_name}` : ""}
+                        {" · "}
+                        {new Date(t.created_at).toLocaleTimeString("en-KE", { hour: "numeric", minute: "2-digit" })}
+                      </p>
+                    </div>
+                    <span
+                      className="text-sm font-semibold flex-shrink-0"
+                      style={{ color: t.is_returned ? "var(--text-3)" : "var(--text)" }}
+                    >
+                      {fmtKES(t.total)}
+                    </span>
+                  </Link>
                 ))}
               </div>
             )}

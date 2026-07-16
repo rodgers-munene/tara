@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { api } from "../../../lib/api";
 import { useAdminAuth } from "../../components/AdminAuthProvider";
+import AuthBackdrop from "../../components/AuthBackdrop";
 
 export default function AdminLoginPage() {
   const { login } = useAdminAuth();
@@ -30,13 +31,15 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div
-      className="flex min-h-svh flex-col items-center justify-center px-6 py-12"
-      style={{ background: "var(--bg)" }}
-    >
+    <div className="relative flex min-h-svh flex-col items-center justify-center px-6 py-12">
+      <AuthBackdrop variant="admin" />
+      <div
+        className="relative z-10 w-full max-w-xs rounded-3xl p-7 flex flex-col items-center"
+        style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1.5px solid var(--border)" }}
+      >
       <div
         className="flex h-14 w-14 items-center justify-center rounded-2xl text-white text-2xl font-bold mb-6 shadow-md"
-        style={{ background: "var(--brand)" }}
+        style={{ background: "var(--admin-ink)" }}
       >
         T
       </div>
@@ -47,7 +50,7 @@ export default function AdminLoginPage() {
         Tara POS platform management
       </p>
 
-      <form onSubmit={handleSubmit} className="w-full max-w-xs flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
         <div>
           <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
             Email
@@ -66,7 +69,7 @@ export default function AdminLoginPage() {
               color: "var(--text)",
               height: 52,
             }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+            onFocus={(e) => (e.target.style.borderColor = "var(--admin-ink)")}
             onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
           />
         </div>
@@ -89,7 +92,7 @@ export default function AdminLoginPage() {
               color: "var(--text)",
               height: 52,
             }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+            onFocus={(e) => (e.target.style.borderColor = "var(--admin-ink)")}
             onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
           />
         </div>
@@ -105,14 +108,14 @@ export default function AdminLoginPage() {
           type="submit"
           disabled={loading || !email.trim() || !pin}
           className="w-full rounded-xl font-semibold text-base text-white flex items-center justify-center gap-2 disabled:opacity-60"
-          style={{ background: "var(--brand)", height: 52 }}
+          style={{ background: "var(--admin-ink)", height: 52 }}
         >
           {loading && <Loader2 size={18} className="animate-spin" />}
           Sign in
         </button>
       </form>
 
-      <div className="w-full max-w-xs mt-4 flex flex-col gap-3">
+      <div className="w-full mt-4 flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
           <span className="text-xs" style={{ color: "var(--text-3)" }}>or</span>
@@ -123,8 +126,8 @@ export default function AdminLoginPage() {
           className="w-full rounded-xl font-semibold text-sm flex items-center justify-center border-2 transition-colors"
           style={{
             height: 52,
-            borderColor: "var(--brand)",
-            color: "var(--brand)",
+            borderColor: "var(--admin-ink)",
+            color: "var(--admin-ink)",
             background: "transparent",
           }}
         >
@@ -138,6 +141,7 @@ export default function AdminLoginPage() {
           Go to staff login
         </a>
       </p>
+      </div>
     </div>
   );
 }
