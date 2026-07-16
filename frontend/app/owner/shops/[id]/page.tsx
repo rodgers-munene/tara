@@ -260,12 +260,12 @@ export default function ShopDetailsPage() {
             />
             <StatTile
               label="Avg sale (30d)"
-              value={analytics ? `KES ${analytics.avg_sale_value.toLocaleString()}` : "—"}
+              value={analytics ? `KES ${analytics.avg_sale_value.toLocaleString()}` : "-"}
               icon={Wallet}
             />
             <StatTile
               label="Returns (30d)"
-              value={analytics ? analytics.returns_count : "—"}
+              value={analytics ? analytics.returns_count : "-"}
               icon={RotateCcw}
             />
           </div>
@@ -390,7 +390,7 @@ export default function ShopDetailsPage() {
                   <div className="flex flex-col items-center gap-2 py-3 text-center">
                     <Lock size={18} style={{ color: "var(--text-3)" }} />
                     <p className="text-xs" style={{ color: "var(--text-3)" }}>
-                      Employee performance tracking is a Medium Enterprise feature — upgrade to unlock it.
+                      Employee performance tracking is a Medium Enterprise feature. Upgrade to unlock it.
                     </p>
                   </div>
                 ) : analytics.staff_performance.length === 0 ? (

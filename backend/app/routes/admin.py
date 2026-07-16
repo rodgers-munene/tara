@@ -1,5 +1,4 @@
 import os
-import re
 import bcrypt
 import jwt
 from datetime import datetime, timedelta
@@ -7,8 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import require_superadmin
-from app.models import Shop, Staff, SuperAdmin, Owner
-from app.schemas import ShopCreate, ShopUpdate, SuperAdminSetup, SuperAdminLogin, OwnerCreate
+from app.models import Shop, SuperAdmin, Owner
+from app.schemas import ShopUpdate, SuperAdminSetup, SuperAdminLogin, OwnerCreate
 from app.pricing import PRICING_KES, activate_subscription
 
 
@@ -16,23 +15,6 @@ SECRET_KEY = os.getenv("JWT_SECRET", "tara-dev-secret-change-in-production")
 ALGORITHM = "HS256"
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-
-
-def _slugify(name: str) -> str:
-    slug = name.lower().strip()
-    slug = re.sub(r"[^\w\s-]", "", slug)
-    slug = re.sub(r"[\s_]+", "-", slug)
-    slug = re.sub(r"-+", "-", slug).strip("-")
-    return slug or "shop"
-
-
-def _unique_slug(base: str, session: Session) -> str:
-    slug = base
-    n = 1
-    while session.exec(select(Shop).where(Shop.slug == slug)).first():
-        slug = f"{base}-{n}"
-        n += 1
-    return slug
 
 
 def _shop_dict(shop: Shop, owner: Owner | None) -> dict:
@@ -100,42 +82,6 @@ def list_shops(
     owner_ids = {s.owner_id for s in shops if s.owner_id is not None}
     owners = {o.id: o for o in session.exec(select(Owner)).all() if o.id in owner_ids}
     return [_shop_dict(shop, owners.get(shop.owner_id)) for shop in shops]
-
-
-@router.post("/shops/", status_code=201)
-def create_shop(
-    data: ShopCreate,
-    session: Session = Depends(get_session),
-    _: dict = Depends(require_superadmin),
-):
-    """Legacy shop creation with no owner account attached — not used by any current
-    frontend page (shop creation now goes through /owner/shops/ under an Owner
-    account, which is where subscription billing lives)."""
-    base_slug = _slugify(data.name)
-    slug = _unique_slug(base_slug, session)
-
-    shop = Shop(
-        name=data.name,
-        slug=slug,
-        email=data.email,
-        phone=data.phone,
-    )
-    session.add(shop)
-    session.flush()
-
-    # Create the owner staff member for this shop
-    pin_hash = bcrypt.hashpw(data.owner_pin.encode(), bcrypt.gensalt()).decode()
-    owner = Staff(
-        name=data.owner_name,
-        pin_hash=pin_hash,
-        role="owner",
-        shop_id=shop.id,
-    )
-    session.add(owner)
-    session.commit()
-    session.refresh(shop)
-
-    return {**_shop_dict(shop, None), "owner_name": data.owner_name}
 
 
 @router.patch("/shops/{shop_id}")

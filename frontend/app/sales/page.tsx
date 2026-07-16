@@ -222,7 +222,11 @@ function SaleRow({
             {sale.is_returned ? (
               <RotateCcw size={16} />
             ) : (
-              <span className="text-base">{isMpesa ? "📱" : "💵"}</span>
+              <img
+                src={isMpesa ? "/mpesa.png" : "/cash.png"}
+                alt=""
+                className="h-4.5 w-4.5 object-contain"
+              />
             )}
           </div>
 
@@ -274,7 +278,7 @@ function SaleRow({
         </button>
 
         {open && (
-          <div className="px-4 pb-4" style={{ background: "var(--surface-2)" }}>
+          <div className="px-4 py-4" style={{ background: "var(--surface-2)" }}>
             <div
               className="rounded-xl overflow-hidden border"
               style={{ borderColor: "var(--border)", background: "var(--surface)" }}
@@ -409,20 +413,11 @@ export default function SalesPage() {
     <div className="flex min-h-svh flex-col lg:pl-56 pt-12 lg:pt-0" style={{ background: "var(--bg)" }}>
       <NavBar />
 
-      {/* Header */}
-      <header
-        className="sticky top-12 lg:top-0 z-20 flex items-center gap-3 px-4 h-14 border-b"
-        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-      >
-        <span className="font-semibold text-base flex-1" style={{ color: "var(--text)" }}>
-          Sales
-        </span>
-      </header>
-
+      
       {/* Search + filter */}
       <div
         className="sticky z-10 px-4 py-3 border-b flex flex-col gap-2"
-        style={{ top: 56, background: "var(--surface)", borderColor: "var(--border)" }}
+        style={{ top: 0, background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <div
           className="flex items-center gap-2 rounded-xl px-3 h-9"
@@ -448,13 +443,20 @@ export default function SalesPage() {
             <button
               key={m}
               onClick={() => setFilterMethod(m)}
-              className="shrink-0 rounded-full px-3.5 py-1 text-xs font-semibold transition-colors"
+              className="shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-semibold transition-colors"
               style={{
                 background: filterMethod === m ? "var(--brand)" : "var(--surface-2)",
                 color: filterMethod === m ? "#fff" : "var(--text-2)",
               }}
             >
-              {m === "all" ? "All" : m === "cash" ? "💵 Cash" : "📱 M-Pesa"}
+              {m !== "all" && (
+                <img
+                  src={m === "cash" ? "/cash.png" : "/mpesa.png"}
+                  alt=""
+                  className="h-3.5 w-3.5 object-contain"
+                />
+              )}
+              {m === "all" ? "All" : m === "cash" ? "Cash" : "M-Pesa"}
             </button>
           ))}
         </div>

@@ -400,9 +400,9 @@ def create_shop(
     limit = max_shops_for(owner)
     if existing_count >= limit:
         if owner.subscription_status == "active":
-            detail = f"Your {owner.plan} plan allows up to {limit} stores — upgrade to add more."
+            detail = f"Your {owner.plan} plan allows up to {limit} stores. Upgrade to add more."
         else:
-            detail = "Your trial or subscription doesn't allow more stores — upgrade to add another."
+            detail = "Your trial or subscription doesn't allow more stores. Upgrade to add another."
         raise HTTPException(status_code=403, detail=detail)
 
     base_slug = _slugify(data.name)
@@ -508,7 +508,7 @@ def add_staff(
     ).all())
     limit = max_staff_for(owner)
     if staff_count >= limit:
-        detail = f"Your {owner.plan} plan allows up to {limit} staff across all your stores — upgrade to add more."
+        detail = f"Your {owner.plan} plan allows up to {limit} staff across all your stores. Upgrade to add more."
         raise HTTPException(status_code=403, detail=detail)
 
     pin_hash = bcrypt.hashpw(data.pin.encode(), bcrypt.gensalt()).decode()

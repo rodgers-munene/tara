@@ -583,7 +583,7 @@ export default function InventoryPage() {
                           style={{ color: isOut ? "var(--danger)" : isLow ? "var(--warning)" : "var(--text-3)" }}
                         >
                           {isOut && <AlertTriangle size={11} />}
-                          {isOut ? "Out of stock" : isLow ? `${p.stock} left — low` : `${p.stock} in stock`}
+                          {isOut ? "Out of stock" : isLow ? `${p.stock} left (low)` : `${p.stock} in stock`}
                         </span>
                       </div>
                     </div>

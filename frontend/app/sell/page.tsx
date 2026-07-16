@@ -17,7 +17,7 @@ interface CartItem {
   qty: number;
 }
 
-type ModalStep = "method" | "cash";
+type ModalStep = "method" | "cash" | "mpesa";
 
 // ── Skeleton tile ─────────────────────────────────────────────────────────────
 function SkeletonTile() {
@@ -38,25 +38,36 @@ function ProductTile({
   qty,
   catColor,
   onAdd,
+  onSubtract,
 }: {
   product: Product;
   qty: number;
   catColor: string | null;
   onAdd: () => void;
+  onSubtract: () => void;
 }) {
   const outOfStock = product.stock === 0;
   const lowStock = product.stock > 0 && product.stock <= product.min_stock;
 
   return (
-    <button
-      onClick={onAdd}
-      disabled={outOfStock}
+    <div
+      role="button"
+      tabIndex={outOfStock ? -1 : 0}
+      aria-disabled={outOfStock}
+      onClick={() => { if (!outOfStock) onAdd(); }}
+      onKeyDown={(e) => {
+        if (!outOfStock && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onAdd();
+        }
+      }}
       className="relative flex flex-col justify-between rounded-xl p-3 text-left transition-all active:scale-95 select-none"
       style={{
         background: "var(--surface)",
         border: qty > 0 ? "2px solid var(--brand)" : "1.5px solid var(--border)",
         opacity: outOfStock ? 0.45 : 1,
         minHeight: 88,
+        cursor: outOfStock ? "default" : "pointer",
       }}
     >
       {/* Category color dot */}
@@ -67,19 +78,41 @@ function ProductTile({
         />
       )}
 
-      {/* In-cart badge */}
+      {/* In-cart stepper — subtle, only appears once an item has been added */}
       {qty > 0 && (
-        <span
-          className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white"
-          style={{ background: "var(--brand)" }}
+        <div
+          className="absolute top-2 right-2 flex items-center gap-1"
+          onClick={(e) => e.stopPropagation()}
         >
-          {qty}
-        </span>
+          <button
+            onClick={(e) => { e.stopPropagation(); onSubtract(); }}
+            aria-label="Remove one"
+            className="flex h-4.5 w-4.5 items-center justify-center rounded-full transition-opacity active:scale-90"
+            style={{ background: "var(--danger-light)", color: "var(--danger)" }}
+          >
+            <Minus size={10} strokeWidth={3} />
+          </button>
+          <span
+            className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold text-white"
+            style={{ background: "var(--brand)" }}
+          >
+            {qty}
+          </span>
+          <button
+            onClick={(e) => { e.stopPropagation(); if (!outOfStock) onAdd(); }}
+            disabled={outOfStock}
+            aria-label="Add one"
+            className="flex h-4.5 w-4.5 items-center justify-center rounded-full transition-opacity active:scale-90 disabled:opacity-30"
+            style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
+          >
+            <Plus size={10} strokeWidth={3} />
+          </button>
+        </div>
       )}
 
       <span
-        className="text-sm font-semibold leading-snug pr-6"
-        style={{ color: "var(--text)", paddingLeft: catColor ? 12 : 0 }}
+        className="text-sm font-semibold leading-snug"
+        style={{ color: "var(--text)", paddingLeft: catColor ? 12 : 0, paddingRight: qty > 0 ? 64 : 24 }}
       >
         {product.name}
       </span>
@@ -100,7 +133,7 @@ function ProductTile({
           </span>
         )}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -451,9 +484,9 @@ function PaymentModal({
   ) => void;
 }) {
   const [step, setStep] = useState<ModalStep>("method");
-  const [cashInput, setCashInput] = useState("");
-  const cashNum = parseFloat(cashInput) || 0;
-  const change = cashNum - total;
+  const [amountInput, setAmountInput] = useState("");
+  const amountNum = parseFloat(amountInput) || 0;
+  const change = amountNum - total;
 
   if (step === "method") {
     return (
@@ -483,7 +516,7 @@ function PaymentModal({
               </div>
             </button>
             <button
-              onClick={() => onComplete("mpesa", total)}
+              onClick={() => setStep("mpesa")}
               className="flex items-center gap-4 w-full p-4 rounded-xl border-2 text-left transition-all active:scale-98"
               style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
               onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--mpesa)")}
@@ -492,7 +525,7 @@ function PaymentModal({
               <span className="text-2xl">📱</span>
               <div>
                 <p className="font-semibold" style={{ color: "var(--text)" }}>M-Pesa</p>
-                <p className="text-xs" style={{ color: "var(--text-3)" }}>Tap to confirm — no ref needed</p>
+                <p className="text-xs" style={{ color: "var(--text-3)" }}>Enter amount received</p>
               </div>
             </button>
           </div>
@@ -523,8 +556,8 @@ function PaymentModal({
           <input
             type="number"
             inputMode="numeric"
-            value={cashInput}
-            onChange={(e) => setCashInput(e.target.value)}
+            value={amountInput}
+            onChange={(e) => setAmountInput(e.target.value)}
             placeholder={String(total)}
             autoFocus
             className="w-full rounded-xl border px-4 text-lg font-semibold outline-none transition-colors mb-4"
@@ -532,7 +565,7 @@ function PaymentModal({
             onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
             onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
           />
-          {cashInput && (
+          {amountInput && (
             <div
               className="flex items-center justify-between rounded-xl px-4 py-3 mb-5"
               style={{ background: change >= 0 ? "var(--brand-light)" : "var(--danger-light)" }}
@@ -546,10 +579,64 @@ function PaymentModal({
             </div>
           )}
           <button
-            onClick={() => onComplete("cash", cashNum)}
-            disabled={cashNum < total}
+            onClick={() => onComplete("cash", amountNum)}
+            disabled={amountNum < total}
             className="w-full rounded-xl font-semibold text-base text-white transition-all active:scale-98 disabled:opacity-40"
             style={{ background: "var(--brand)", height: 52 }}
+          >
+            Complete Sale
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "mpesa") {
+    return (
+      <div className="modal">
+        <div className="modal-content">
+          <button onClick={() => setStep("method")} className="flex items-center gap-1.5 text-sm font-medium mb-5" style={{ color: "var(--brand)" }}>
+            ← Back
+          </button>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-3)" }}>
+            M-Pesa payment
+          </p>
+          <p className="text-2xl font-bold mb-5" style={{ color: "var(--text)" }}>
+            {fmtKES(total)}
+          </p>
+          <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+            Amount received (KES)
+          </label>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={amountInput}
+            onChange={(e) => setAmountInput(e.target.value)}
+            placeholder={String(total)}
+            autoFocus
+            className="w-full rounded-xl border px-4 text-lg font-semibold outline-none transition-colors mb-4"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)", height: 52 }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--mpesa)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+          />
+          {amountInput && (
+            <div
+              className="flex items-center justify-between rounded-xl px-4 py-3 mb-5"
+              style={{ background: change >= 0 ? "var(--brand-light)" : "var(--danger-light)" }}
+            >
+              <span className="text-sm font-medium" style={{ color: change >= 0 ? "var(--brand-dark)" : "var(--danger)" }}>
+                {change >= 0 ? "Change" : "Shortfall"}
+              </span>
+              <span className="font-bold" style={{ color: change >= 0 ? "var(--brand-dark)" : "var(--danger)" }}>
+                {fmtKES(Math.abs(change))}
+              </span>
+            </div>
+          )}
+          <button
+            onClick={() => onComplete("mpesa", amountNum)}
+            disabled={amountNum < total}
+            className="w-full rounded-xl font-semibold text-base text-white transition-all active:scale-98 disabled:opacity-40"
+            style={{ background: "var(--mpesa)", height: 52 }}
           >
             Complete Sale
           </button>
@@ -773,6 +860,14 @@ export default function SellPage() {
     });
   }, []);
 
+  const subtractFromCart = useCallback((id: number) => {
+    setCart((prev) =>
+      prev
+        .map((i) => (i.product.id === id ? { ...i, qty: i.qty - 1 } : i))
+        .filter((i) => i.qty > 0)
+    );
+  }, []);
+
   const updateCart = useCallback((id: number, delta: number) => {
     setCart((prev) =>
       prev.map((i) =>
@@ -886,25 +981,12 @@ export default function SellPage() {
             </button>
           )}
         </div>
-        {user && (
-          <div className="flex items-center gap-1.5 shrink-0 lg:hidden">
-            <span className="text-xs font-medium" style={{ color: "var(--text-2)" }}>
-              {user.name.split(" ")[0]}
-            </span>
-            <button
-              onClick={logout}
-              className="flex h-7 w-7 items-center justify-center rounded-lg"
-              style={{ color: "var(--text-3)" }}
-            >
-              <LogOut size={14} />
-            </button>
-          </div>
-        )}
+        
       </header>
 
       {/* Category tabs */}
       <div
-        className="sticky top-[104px] lg:top-14 z-10 flex gap-2 px-4 py-2.5 no-scrollbar overflow-x-auto border-b"
+        className="sticky top-26 lg:top-14 z-10 flex gap-2 px-4 py-2.5 no-scrollbar overflow-x-auto border-b"
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <button
@@ -949,7 +1031,7 @@ export default function SellPage() {
         ) : filtered.length === 0 ? (
           <div className="flex h-48 flex-col items-center justify-center gap-2">
             <p className="text-sm font-medium" style={{ color: "var(--text-3)" }}>
-              {search ? `No products matching "${search}"` : "No products yet — add some in Items"}
+              {search ? `No products matching "${search}"` : "No products yet. Add some in Items"}
             </p>
           </div>
         ) : (
@@ -961,6 +1043,7 @@ export default function SellPage() {
                 qty={qtyInCart(p.id)}
                 catColor={p.category_id ? (catColorMap[p.category_id] ?? null) : null}
                 onAdd={() => addToCart(p)}
+                onSubtract={() => subtractFromCart(p.id)}
               />
             ))}
           </div>

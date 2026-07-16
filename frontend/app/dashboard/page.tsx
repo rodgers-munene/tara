@@ -21,7 +21,7 @@ function WeekChart({ data }: { data: DashboardStats["week_chart"] }) {
           const pct = d.total === 0 ? 2 : Math.max(4, (d.total / max) * 100);
           const isToday = d.date === today;
           return (
-            <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
+            <div key={d.date} className="flex-1 h-full flex flex-col justify-end items-center gap-1">
               <div
                 className="w-full rounded-t-md transition-all"
                 style={{
@@ -216,23 +216,19 @@ export default function DashboardPage() {
             </Link>
 
             {/* Payment split */}
-            <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: "var(--surface)", border: "1.5px solid var(--border)" }}>
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: "var(--mpesa-light)" }}>
+            <div className="flex items-center gap-3 rounded-2xl px-4 py-3.5" style={{ background: "var(--surface)", border: "1.5px solid var(--border)" }}>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--mpesa-light)" }}>
                 <Smartphone size={18} style={{ color: "var(--mpesa)" }} />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-3)" }}>Payment split</p>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--brand)" }} />
-                    <span className="text-xs font-medium" style={{ color: "var(--text-2)" }}>
-                      Cash {fmtKES(stats.today_cash)}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <div className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--mpesa)" }} />
-                  <span className="text-xs font-medium" style={{ color: "var(--text-2)" }}>
+                <div className="flex items-center gap-3 mt-1 flex-wrap">
+                  <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--text-2)" }}>
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "var(--brand)" }} />
+                    Cash {fmtKES(stats.today_cash)}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--text-2)" }}>
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "var(--mpesa)" }} />
                     M-Pesa {fmtKES(stats.today_mpesa)}
                   </span>
                 </div>

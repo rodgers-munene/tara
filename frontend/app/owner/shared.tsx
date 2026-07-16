@@ -411,7 +411,7 @@ export function StaffPanel({
             shop.max_staff && shop.total_staff_count >= shop.max_staff ? (
               <p className="text-xs text-center rounded-2xl py-3 px-3"
                 style={{ background: "var(--danger-light)", color: "var(--danger)" }}>
-                You've used all {shop.max_staff} staff slots on your {shop.plan} plan — upgrade to add more.
+                You've used all {shop.max_staff} staff slots on your {shop.plan} plan. Upgrade to add more.
               </p>
             ) : (
               <button
