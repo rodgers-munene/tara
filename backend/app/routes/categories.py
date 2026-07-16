@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
-from app.dependencies import get_current_user
-from app.models import Category, CategoryCreate, CategoryRead
+from app.dependencies import get_current_user, require_shop_owner_role
+from app.models import Category
+from app.schemas import CategoryCreate, CategoryRead
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -20,7 +21,7 @@ def list_categories(
 def create_category(
     data: CategoryCreate,
     session: Session = Depends(get_session),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_shop_owner_role),
 ):
     category = Category(name=data.name, color=data.color, shop_id=current_user.get("shop_id"))
     session.add(category)
@@ -33,7 +34,7 @@ def create_category(
 def delete_category(
     category_id: int,
     session: Session = Depends(get_session),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_shop_owner_role),
 ):
     category = session.get(Category, category_id)
     if not category or category.shop_id != current_user.get("shop_id"):

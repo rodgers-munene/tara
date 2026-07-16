@@ -72,10 +72,30 @@ def get_stats(
         select(Product)
         .where(Product.shop_id == shop_id)
         .where(Product.active == True)
-        .where(Product.stock <= 5)
+        .where(Product.stock <= Product.min_stock)
     ).all()
 
+    total_products = session.exec(
+        select(Product).where(Product.shop_id == shop_id).where(Product.active == True)
+    ).all()
+
+    recent_sales = sorted(all_sales, key=lambda s: s.created_at, reverse=True)[:5]
+
     return {
+        "total_products": len(total_products),
+        "recent_transactions": [
+            {
+                "id": s.id,
+                "receipt_number": s.receipt_number,
+                "total": s.total,
+                "payment_method": s.payment_method,
+                "cashier_name": s.cashier_name,
+                "item_count": len(s.items),
+                "is_returned": s.is_returned,
+                "created_at": s.created_at.isoformat(),
+            }
+            for s in recent_sales
+        ],
         "today_total": round(today_total, 2),
         "today_count": today_count,
         "today_cash": round(today_cash, 2),

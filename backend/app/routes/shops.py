@@ -1,9 +1,24 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
-from app.models import Shop, Staff, StaffRead
+from app.dependencies import get_current_user
+from app.models import Shop, Staff
+from app.schemas import StaffRead
 
 router = APIRouter(prefix="/shops", tags=["shops"])
+
+
+@router.get("/me")
+def get_my_shop(
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
+):
+    """Shop branding info (name/phone) for the logged-in staff member's shop."""
+    shop_id = current_user.get("shop_id")
+    shop = session.get(Shop, shop_id) if shop_id else None
+    if not shop:
+        raise HTTPException(status_code=404, detail="Shop not found")
+    return {"id": shop.id, "name": shop.name, "phone": shop.phone}
 
 
 @router.get("/{slug}")
@@ -26,6 +41,5 @@ def get_shop(slug: str, session: Session = Depends(get_session)):
         "id": shop.id,
         "name": shop.name,
         "slug": shop.slug,
-        "plan": shop.plan,
         "staff": [{"id": s.id, "name": s.name, "role": s.role} for s in staff],
     }

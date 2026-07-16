@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import get_current_user
-from app.models import Staff, StaffCreate, StaffRead, LoginRequest, LoginResponse
+from app.models import Staff
+from app.schemas import StaffCreate, StaffRead, LoginRequest, LoginResponse
 
 SECRET_KEY = os.getenv("JWT_SECRET", "tara-dev-secret-change-in-production")
 ALGORITHM = "HS256"

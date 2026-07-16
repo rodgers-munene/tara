@@ -2,10 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import get_current_user
-from app.models import (
-    Customer, CustomerCreate, CustomerUpdate,
-    CreditEntry, CreditEntryRead, CreditEntryCreate,
-)
+from app.models import Customer, CreditEntry
+from app.schemas import CustomerCreate, CustomerUpdate, CreditEntryRead, CreditEntryCreate
+
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 

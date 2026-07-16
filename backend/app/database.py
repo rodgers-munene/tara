@@ -7,7 +7,7 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=True, pool_pre_ping=True, pool_recycle=300)
 
 
 def get_session():
@@ -42,15 +42,74 @@ def run_migrations():
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS mpesa_phone VARCHAR",
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS is_returned BOOLEAN NOT NULL DEFAULT FALSE",
                 "ALTER TABLE product ADD COLUMN IF NOT EXISTS buying_price FLOAT NOT NULL DEFAULT 0",
+                "ALTER TABLE product ADD COLUMN IF NOT EXISTS min_stock INTEGER NOT NULL DEFAULT 5",
+                "ALTER TABLE shop ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP",
+                "ALTER TABLE shop ADD COLUMN IF NOT EXISTS subscription_status VARCHAR NOT NULL DEFAULT 'trialing'",
+                "ALTER TABLE shop ADD COLUMN IF NOT EXISTS billing_cycle VARCHAR",
+                "ALTER TABLE shop ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMP",
             ]
             for stmt in column_migrations:
                 conn.execute(text(stmt))
             conn.commit()
+            
+            # Grandfather shops that existed before the paywall shipped — new shops always
+            # get trial_ends_at set explicitly at creation, so this becomes a no-op once
+            # every legacy row has been backfilled.
+            conn.execute(text(
+                "UPDATE shop SET subscription_status = 'active' WHERE trial_ends_at IS NULL"
+            ))
+            conn.commit()
+
 
             # Add owner_id to shop table
             conn.execute(text(
                 "ALTER TABLE shop ADD COLUMN IF NOT EXISTS owner_id INTEGER REFERENCES owner(id)"
             ))
+
+            # Subscription now lives on the owner account (one bill covers up to N stores),
+            # not per shop. Columns stay on `shop` (unused, harmless) since we never drop.
+            owner_column_migrations = [
+                "ALTER TABLE owner ADD COLUMN IF NOT EXISTS plan VARCHAR NOT NULL DEFAULT 'free'",
+                "ALTER TABLE owner ADD COLUMN IF NOT EXISTS billing_cycle VARCHAR",
+                "ALTER TABLE owner ADD COLUMN IF NOT EXISTS subscription_status VARCHAR NOT NULL DEFAULT 'trialing'",
+                "ALTER TABLE owner ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMP",
+                "ALTER TABLE owner ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP",
+            ]
+            for stmt in owner_column_migrations:
+                conn.execute(text(stmt))
+            conn.commit()
+
+            # One-time backfill: copy each owner's subscription state up from their shops.
+            # Guarded on still-at-defaults so this is a no-op once every owner is migrated,
+            # and never clobbers a real activation that happened after cutover.
+            conn.execute(text("""
+                UPDATE owner SET
+                    plan = sub.plan,
+                    billing_cycle = sub.billing_cycle,
+                    subscription_status = sub.subscription_status,
+                    subscription_ends_at = sub.subscription_ends_at,
+                    trial_ends_at = sub.trial_ends_at
+                FROM (
+                    SELECT DISTINCT ON (shop.owner_id)
+                        shop.owner_id AS owner_id,
+                        shop.plan AS plan,
+                        shop.billing_cycle AS billing_cycle,
+                        shop.subscription_status AS subscription_status,
+                        shop.subscription_ends_at AS subscription_ends_at,
+                        shop.trial_ends_at AS trial_ends_at
+                    FROM shop
+                    WHERE shop.owner_id IS NOT NULL
+                    ORDER BY shop.owner_id,
+                        CASE shop.plan WHEN 'medium' THEN 2 WHEN 'small' THEN 1 ELSE 0 END DESC,
+                        CASE shop.subscription_status WHEN 'active' THEN 2 WHEN 'trialing' THEN 1 ELSE 0 END DESC,
+                        shop.subscription_ends_at DESC NULLS LAST
+                ) sub
+                WHERE owner.id = sub.owner_id
+                    AND owner.subscription_ends_at IS NULL
+                    AND owner.plan = 'free'
+                    AND owner.subscription_status = 'trialing'
+            """))
+            conn.commit()
 
             # Add shop_id column to every tenant table (no-op if already exists)
             tables = ["staff", "category", "product", "sale", "customer", "credit_entry", "day_close"]

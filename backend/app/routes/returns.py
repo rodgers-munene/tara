@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import get_current_user
-from app.models import Sale, SaleReturn, SaleReturnCreate, SaleReturnRead, Product, SaleItem
+from app.models import Sale, SaleReturn, Product, SaleItem
+from app.schemas import SaleReturnCreate, SaleReturnRead
 
 router = APIRouter(prefix="/returns", tags=["returns"])
 

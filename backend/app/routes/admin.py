@@ -2,16 +2,15 @@ import os
 import re
 import bcrypt
 import jwt
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import require_superadmin
-from app.models import (
-    Shop, ShopCreate, ShopRead, ShopUpdate,
-    Staff, SuperAdmin, SuperAdminSetup, SuperAdminLogin,
-    Owner, OwnerCreate,
-)
+from app.models import Shop, Staff, SuperAdmin, Owner
+from app.schemas import ShopCreate, ShopUpdate, SuperAdminSetup, SuperAdminLogin, OwnerCreate
+from app.pricing import PRICING_KES, activate_subscription
+
 
 SECRET_KEY = os.getenv("JWT_SECRET", "tara-dev-secret-change-in-production")
 ALGORITHM = "HS256"
@@ -36,7 +35,27 @@ def _unique_slug(base: str, session: Session) -> str:
     return slug
 
 
-# ── Setup (one-time) ──────────────────────────────────────────────────────────
+def _shop_dict(shop: Shop, owner: Owner | None) -> dict:
+    """Subscription lives on the owner account now, so it's merged onto each of
+    their shops here for a response shape that matches what the frontend expects."""
+    return {
+        "id": shop.id,
+        "name": shop.name,
+        "slug": shop.slug,
+        "email": shop.email,
+        "phone": shop.phone,
+        "active": shop.active,
+        "owner_id": shop.owner_id,
+        "plan": owner.plan if owner else "free",
+        "billing_cycle": owner.billing_cycle if owner else None,
+        "trial_ends_at": owner.trial_ends_at.isoformat() if owner and owner.trial_ends_at else None,
+        "subscription_status": owner.subscription_status if owner else "trialing",
+        "subscription_ends_at": owner.subscription_ends_at.isoformat() if owner and owner.subscription_ends_at else None,
+        "created_at": shop.created_at.isoformat(),
+    }
+
+
+# Setup (one-time)
 
 @router.post("/setup", status_code=201)
 def setup_superadmin(data: SuperAdminSetup, session: Session = Depends(get_session)):
@@ -51,7 +70,7 @@ def setup_superadmin(data: SuperAdminSetup, session: Session = Depends(get_sessi
     return {"message": "Superadmin created"}
 
 
-# ── Auth ──────────────────────────────────────────────────────────────────────
+#  Auth
 
 @router.post("/login/")
 def admin_login(data: SuperAdminLogin, session: Session = Depends(get_session)):
@@ -70,14 +89,17 @@ def admin_login(data: SuperAdminLogin, session: Session = Depends(get_session)):
     return {"access_token": token, "token_type": "bearer", "name": admin.name}
 
 
-# ── Shops CRUD ────────────────────────────────────────────────────────────────
+# Shops CRUD
 
-@router.get("/shops/", response_model=list[ShopRead])
+@router.get("/shops/")
 def list_shops(
     session: Session = Depends(get_session),
     _: dict = Depends(require_superadmin),
 ):
-    return session.exec(select(Shop).order_by(Shop.created_at.desc())).all()
+    shops = session.exec(select(Shop).order_by(Shop.created_at.desc())).all()
+    owner_ids = {s.owner_id for s in shops if s.owner_id is not None}
+    owners = {o.id: o for o in session.exec(select(Owner)).all() if o.id in owner_ids}
+    return [_shop_dict(shop, owners.get(shop.owner_id)) for shop in shops]
 
 
 @router.post("/shops/", status_code=201)
@@ -86,6 +108,9 @@ def create_shop(
     session: Session = Depends(get_session),
     _: dict = Depends(require_superadmin),
 ):
+    """Legacy shop creation with no owner account attached — not used by any current
+    frontend page (shop creation now goes through /owner/shops/ under an Owner
+    account, which is where subscription billing lives)."""
     base_slug = _slugify(data.name)
     slug = _unique_slug(base_slug, session)
 
@@ -94,7 +119,6 @@ def create_shop(
         slug=slug,
         email=data.email,
         phone=data.phone,
-        plan=data.plan,
     )
     session.add(shop)
     session.flush()
@@ -111,20 +135,10 @@ def create_shop(
     session.commit()
     session.refresh(shop)
 
-    return {
-        "id": shop.id,
-        "name": shop.name,
-        "slug": shop.slug,
-        "email": shop.email,
-        "phone": shop.phone,
-        "plan": shop.plan,
-        "active": shop.active,
-        "created_at": shop.created_at.isoformat(),
-        "owner_name": data.owner_name,
-    }
+    return {**_shop_dict(shop, None), "owner_name": data.owner_name}
 
 
-@router.patch("/shops/{shop_id}", response_model=ShopRead)
+@router.patch("/shops/{shop_id}")
 def update_shop(
     shop_id: int,
     data: ShopUpdate,
@@ -140,7 +154,8 @@ def update_shop(
     session.add(shop)
     session.commit()
     session.refresh(shop)
-    return shop
+    owner = session.get(Owner, shop.owner_id) if shop.owner_id else None
+    return _shop_dict(shop, owner)
 
 
 # ── Owner management ──────────────────────────────────────────────────────────
@@ -155,11 +170,33 @@ def create_owner(
     if existing:
         raise HTTPException(status_code=400, detail="Email already in use")
     pin_hash = bcrypt.hashpw(data.pin.encode(), bcrypt.gensalt()).decode()
-    owner = Owner(name=data.name, email=data.email.lower(), pin_hash=pin_hash)
+    owner = Owner(
+        name=data.name,
+        email=data.email.lower(),
+        pin_hash=pin_hash,
+        subscription_status="trialing",
+        trial_ends_at=datetime.utcnow() + timedelta(days=7),
+    )
     session.add(owner)
     session.commit()
     session.refresh(owner)
-    return {"id": owner.id, "name": owner.name, "email": owner.email, "active": owner.active, "shop_count": 0}
+    return _owner_dict(owner, shop_count=0)
+
+
+def _owner_dict(owner: Owner, shop_count: int) -> dict:
+    return {
+        "id": owner.id,
+        "name": owner.name,
+        "email": owner.email,
+        "active": owner.active,
+        "shop_count": shop_count,
+        "plan": owner.plan,
+        "billing_cycle": owner.billing_cycle,
+        "trial_ends_at": owner.trial_ends_at.isoformat() if owner.trial_ends_at else None,
+        "subscription_status": owner.subscription_status,
+        "subscription_ends_at": owner.subscription_ends_at.isoformat() if owner.subscription_ends_at else None,
+        "created_at": owner.created_at.isoformat(),
+    }
 
 
 @router.get("/owners/")
@@ -171,14 +208,7 @@ def list_owners(
     result = []
     for owner in owners:
         shop_count = len(session.exec(select(Shop).where(Shop.owner_id == owner.id)).all())
-        result.append({
-            "id": owner.id,
-            "name": owner.name,
-            "email": owner.email,
-            "active": owner.active,
-            "shop_count": shop_count,
-            "created_at": owner.created_at.isoformat(),
-        })
+        result.append(_owner_dict(owner, shop_count))
     return result
 
 
@@ -196,10 +226,38 @@ def update_owner(
         owner.active = data["active"]
     if "name" in data:
         owner.name = data["name"]
+    if "subscription_status" in data:
+        owner.subscription_status = data["subscription_status"]
     session.add(owner)
     session.commit()
     session.refresh(owner)
-    return {"id": owner.id, "name": owner.name, "email": owner.email, "active": owner.active}
+    shop_count = len(session.exec(select(Shop).where(Shop.owner_id == owner.id)).all())
+    return _owner_dict(owner, shop_count)
+
+
+@router.post("/owners/{owner_id}/activate")
+def activate_owner_subscription(
+    owner_id: int,
+    data: dict,
+    session: Session = Depends(get_session),
+    _: dict = Depends(require_superadmin),
+):
+    """Manual override for payments confirmed outside the automated Paystack flow
+    (e.g. the webhook hasn't fired yet, or payment was arranged directly with the
+    owner). Reuses the same activation math as the real Paystack path so both ways
+    of paying compute expiry identically. Activates the whole account — every store
+    under this owner is covered by the one subscription."""
+    owner = session.get(Owner, owner_id)
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner not found")
+    tier = data.get("tier")
+    cycle = data.get("cycle")
+    if (tier, cycle) not in PRICING_KES:
+        raise HTTPException(status_code=400, detail="Invalid plan/billing cycle combination")
+    activate_subscription(session, owner_id, tier, cycle)
+    session.refresh(owner)
+    shop_count = len(session.exec(select(Shop).where(Shop.owner_id == owner.id)).all())
+    return _owner_dict(owner, shop_count)
 
 
 # ── Platform stats ────────────────────────────────────────────────────────────

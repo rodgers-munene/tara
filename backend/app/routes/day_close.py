@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import get_current_user
-from app.models import Sale, DayClose, DayCloseRead, DayCloseCreate
+from app.models import Sale, DayClose
+from app.schemas import DayCloseRead, DayCloseCreate
 
 router = APIRouter(prefix="/day-close", tags=["day-close"])
 

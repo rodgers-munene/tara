@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from app.database import get_session
-from app.dependencies import get_current_user
-from app.models import Product, ProductCreate, ProductRead, ProductUpdate
+from app.dependencies import get_current_user, require_shop_owner_role
+from app.models import Product
+from app.schemas import ProductCreate, ProductRead, ProductUpdate
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -32,7 +33,7 @@ def list_products(
 def create_product(
     data: ProductCreate,
     session: Session = Depends(get_session),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_shop_owner_role),
 ):
     product = Product(
         name=data.name,
@@ -65,7 +66,7 @@ def update_product(
     product_id: int,
     data: ProductUpdate,
     session: Session = Depends(get_session),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_shop_owner_role),
 ):
     product = session.get(Product, product_id)
     if not product or product.shop_id != current_user.get("shop_id"):
@@ -83,7 +84,7 @@ def update_product(
 def delete_product(
     product_id: int,
     session: Session = Depends(get_session),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_shop_owner_role),
 ):
     product = session.get(Product, product_id)
     if not product or product.shop_id != current_user.get("shop_id"):

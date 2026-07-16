@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import get_current_user
-from app.models import Sale, SaleItem, SaleCreate, SaleRead, Product
+from app.models import Sale, SaleItem, Product
+from app.schemas import SaleCreate, SaleRead
 
 router = APIRouter(prefix="/sales", tags=["sales"])
 
