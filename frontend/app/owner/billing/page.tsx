@@ -9,7 +9,7 @@ export default function OwnerBillingPage() {
   const { token } = useOwnerAuth();
   const { data: shops = [], isLoading: loading, mutate: load } = useOwnerApi<Shop[]>("/owner/shops/", token);
   const [upgradeShop, setUpgradeShop] = useState<Shop | null>(null);
-  const [verifyBanner, setVerifyBanner] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [verifyBanner, setVerifyBanner] = useState<{ type: "success" | "warning" | "error"; message: string } | null>(null);
 
   // Paystack redirects back here with ?reference=|trxref= after checkout.
   useEffect(() => {
@@ -20,13 +20,23 @@ export default function OwnerBillingPage() {
 
     (async () => {
       try {
-        const result = await ownerRequest<{ verified: boolean }>(
+        const result = await ownerRequest<{ verified: boolean; status?: string }>(
           `/owner/checkout/verify?reference=${encodeURIComponent(reference)}`,
           token,
         );
         if (result.verified) {
           setVerifyBanner({ type: "success", message: "Payment confirmed, subscription activated!" });
           load();
+        } else if (result.status === "abandoned") {
+          setVerifyBanner({
+            type: "warning",
+            message: "Checkout cancelled. No charge was made — you can try again anytime.",
+          });
+        } else if (result.status === "failed") {
+          setVerifyBanner({
+            type: "error",
+            message: "Payment failed. Please try again or use a different payment method.",
+          });
         } else {
           setVerifyBanner({
             type: "error",
@@ -54,8 +64,12 @@ export default function OwnerBillingPage() {
         <div
           className="rounded-2xl px-4 py-3 text-sm font-medium flex items-center justify-between gap-3"
           style={{
-            background: verifyBanner.type === "success" ? "var(--brand-light)" : "var(--danger-light)",
-            color: verifyBanner.type === "success" ? "var(--brand-dark)" : "var(--danger)",
+            background:
+              verifyBanner.type === "success" ? "var(--brand-light)" :
+              verifyBanner.type === "warning" ? "var(--warning-light)" : "var(--danger-light)",
+            color:
+              verifyBanner.type === "success" ? "var(--brand-dark)" :
+              verifyBanner.type === "warning" ? "var(--warning)" : "var(--danger)",
           }}
         >
           <span>{verifyBanner.message}</span>

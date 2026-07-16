@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
-import { Loader2, X, Trash2, UserPlus } from "lucide-react";
+import { Loader2, X, Trash2, UserPlus, KeyRound } from "lucide-react";
 
 export const BASE = "/api";
 
@@ -260,7 +260,7 @@ export function UpgradeModal({
           style={{ background: "var(--brand)", height: 48 }}
         >
           {starting && <Loader2 size={16} className="animate-spin" />}
-          Pay with Paystack
+          Pay with mpesa
         </button>
       </div>
     </div>
@@ -285,6 +285,10 @@ export function StaffPanel({
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [resetTarget, setResetTarget] = useState<number | null>(null);
+  const [resetPinValue, setResetPinValue] = useState("");
+  const [resetSaving, setResetSaving] = useState(false);
+  const [resetError, setResetError] = useState("");
 
   async function loadStaff() {
     try {
@@ -317,6 +321,27 @@ export function StaffPanel({
       setError((err as Error).message ?? "Failed to add staff");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function resetPin(id: number) {
+    if (resetPinValue.length < 4) {
+      setResetError("PIN must be at least 4 digits");
+      return;
+    }
+    setResetSaving(true);
+    setResetError("");
+    try {
+      await ownerRequest(`/owner/shops/${shop.id}/staff/${id}/pin`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ pin: resetPinValue }),
+      });
+      setResetTarget(null);
+      setResetPinValue("");
+    } catch (err: unknown) {
+      setResetError((err as Error).message ?? "Failed to reset PIN");
+    } finally {
+      setResetSaving(false);
     }
   }
 
@@ -372,34 +397,82 @@ export function StaffPanel({
             staff.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center gap-3 rounded-2xl p-3"
+                className="rounded-2xl p-3 flex flex-col gap-2"
                 style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
               >
-                <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                  style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
-                >
-                  {s.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{s.name}</p>
-                  <p className="text-xs capitalize" style={{ color: "var(--text-3)" }}>
-                    {s.role} · Login ID: <span className="font-mono font-bold">{s.id}</span>
-                  </p>
-                </div>
-                {removing === s.id ? (
-                  <Loader2 size={15} className="animate-spin shrink-0" style={{ color: "var(--text-3)" }} />
-                ) : (
-                  <button
-                    onClick={() => removeStaff(s.id)}
-                    className="shrink-0 flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-                    style={{ color: "var(--text-3)" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "var(--danger)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-3)")}
-                    title="Remove"
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                    style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
                   >
-                    <Trash2 size={14} />
-                  </button>
+                    {s.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{s.name}</p>
+                    <p className="text-xs capitalize" style={{ color: "var(--text-3)" }}>
+                      {s.role} · Login ID: <span className="font-mono font-bold">{s.id}</span>
+                    </p>
+                  </div>
+                  {removing === s.id ? (
+                    <Loader2 size={15} className="animate-spin shrink-0" style={{ color: "var(--text-3)" }} />
+                  ) : (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => {
+                          const opening = resetTarget !== s.id;
+                          setResetTarget(opening ? s.id : null);
+                          setResetPinValue("");
+                          setResetError("");
+                        }}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
+                        style={{ color: resetTarget === s.id ? "var(--brand)" : "var(--text-3)" }}
+                        title="Reset PIN"
+                      >
+                        <KeyRound size={14} />
+                      </button>
+                      <button
+                        onClick={() => removeStaff(s.id)}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
+                        style={{ color: "var(--text-3)" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--danger)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-3)")}
+                        title="Remove"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {resetTarget === s.id && (
+                  <div className="flex flex-col gap-1.5 pl-12">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        value={resetPinValue}
+                        onChange={(e) => setResetPinValue(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                        placeholder="New 4-digit PIN"
+                        autoFocus
+                        className="flex-1 rounded-xl border px-3 text-sm outline-none text-center tracking-widest font-bold"
+                        style={{ ...inputStyle, height: 36 }}
+                        onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+                        onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+                      />
+                      <button
+                        onClick={() => resetPin(s.id)}
+                        disabled={resetSaving}
+                        className="rounded-xl px-3 text-sm font-semibold text-white flex items-center justify-center gap-1 disabled:opacity-60 shrink-0"
+                        style={{ background: "var(--brand)", height: 36 }}
+                      >
+                        {resetSaving && <Loader2 size={12} className="animate-spin" />}
+                        Save
+                      </button>
+                    </div>
+                    {resetError && (
+                      <p className="text-xs" style={{ color: "var(--danger)" }}>{resetError}</p>
+                    )}
+                  </div>
                 )}
               </div>
             ))

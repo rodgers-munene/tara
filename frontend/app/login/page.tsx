@@ -356,6 +356,10 @@ export default function LoginPage() {
           ) : (
             <Numpad onPress={handleNumpad} />
           )}
+
+          <p className="text-xs mt-5 text-center" style={{ color: "var(--text-3)" }}>
+            Forgot your PIN? Ask your shop owner to reset it.
+          </p>
         </div>
       )}
       </div>

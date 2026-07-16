@@ -50,7 +50,7 @@ def start_checkout(
             "email": owner.email,
             "amount": price * 100,  # Paystack expects the lowest currency denomination
             "currency": "KES",
-            "callback_url": f"{FRONTEND_URL}/owner/dashboard",
+            "callback_url": f"{FRONTEND_URL}/owner/billing",
             "metadata": {"owner_id": owner_id, "tier": data.tier, "cycle": data.cycle},
         },
         timeout=15,
@@ -88,8 +88,14 @@ def verify_checkout(
     )
     body = resp.json()
     data = body.get("data") or {}
-    if not resp.ok or not body.get("status") or data.get("status") != "success":
-        return {"verified": False}
+    if not resp.ok or not body.get("status"):
+        return {"verified": False, "status": "error"}
+
+    # Paystack's own status for this transaction: "success", "abandoned" (checkout
+    # closed/cancelled before paying), "failed", or a handful of in-flight states.
+    txn_status = data.get("status") or "error"
+    if txn_status != "success":
+        return {"verified": False, "status": txn_status}
 
     metadata = data.get("metadata") or {}
     if str(metadata.get("owner_id")) != str(owner_id):
@@ -99,6 +105,7 @@ def verify_checkout(
     session.refresh(owner)
     return {
         "verified": True,
+        "status": "success",
         "plan": owner.plan,
         "billing_cycle": owner.billing_cycle,
         "subscription_status": owner.subscription_status,

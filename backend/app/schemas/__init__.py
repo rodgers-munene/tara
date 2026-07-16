@@ -4,7 +4,7 @@ from app.schemas.owner import (
     ForgotPasswordRequest, ResetPasswordRequest,
     SuperAdminSetup, SuperAdminLogin,
 )
-from app.schemas.staff import StaffRead, StaffCreate, LoginRequest, LoginResponse
+from app.schemas.staff import StaffRead, StaffCreate, StaffPinReset, LoginRequest, LoginResponse
 from app.schemas.catalog import CategoryRead, CategoryCreate, ProductRead, ProductCreate, ProductUpdate
 from app.schemas.sales import (
     SaleItemCreate, SaleItemRead, SaleCreate, SaleRead,
@@ -19,7 +19,7 @@ __all__ = [
     "OwnerCreate", "OwnerRead", "OwnerLogin", "OwnerSelfUpdate",
     "ForgotPasswordRequest", "ResetPasswordRequest",
     "SuperAdminSetup", "SuperAdminLogin",
-    "StaffRead", "StaffCreate", "LoginRequest", "LoginResponse",
+    "StaffRead", "StaffCreate", "StaffPinReset", "LoginRequest", "LoginResponse",
     "CategoryRead", "CategoryCreate", "ProductRead", "ProductCreate", "ProductUpdate",
     "SaleItemCreate", "SaleItemRead", "SaleCreate", "SaleRead",
     "SaleReturnCreate", "SaleReturnRead",

@@ -14,7 +14,7 @@ from app.pricing import max_shops_for, max_staff_for, has_feature
 from app.schemas import (
     OwnerCreate, OwnerLogin, OwnerSelfUpdate,
     ForgotPasswordRequest, ResetPasswordRequest,
-    ShopCreate, ShopUpdate, StaffCreate,
+    ShopCreate, ShopUpdate, StaffCreate, StaffPinReset,
 )
 
 
@@ -517,6 +517,32 @@ def add_staff(
     session.commit()
     session.refresh(staff)
     return {"id": staff.id, "name": staff.name, "role": staff.role}
+
+
+@router.patch("/shops/{shop_id}/staff/{staff_id}/pin")
+def reset_staff_pin(
+    shop_id: int,
+    staff_id: int,
+    data: StaffPinReset,
+    session: Session = Depends(get_session),
+    payload: dict = Depends(require_owner),
+):
+    """Staff have no email on file, so there's no self-service PIN recovery — the
+    owner resets it for them directly, the same way they add/remove staff."""
+    owner_id = int(payload["sub"])
+    shop = session.get(Shop, shop_id)
+    if not shop or shop.owner_id != owner_id:
+        raise HTTPException(status_code=404, detail="Shop not found")
+    staff = session.get(Staff, staff_id)
+    if not staff or staff.shop_id != shop_id or not staff.active:
+        raise HTTPException(status_code=404, detail="Staff not found")
+    if len(data.pin) < 4:
+        raise HTTPException(status_code=400, detail="PIN must be at least 4 digits")
+
+    staff.pin_hash = bcrypt.hashpw(data.pin.encode(), bcrypt.gensalt()).decode()
+    session.add(staff)
+    session.commit()
+    return {"message": "PIN reset."}
 
 
 @router.delete("/shops/{shop_id}/staff/{staff_id}", status_code=204)

@@ -14,6 +14,10 @@ class StaffCreate(SQLModel):
     role: str = "cashier"
 
 
+class StaffPinReset(SQLModel):
+    pin: str
+
+
 class LoginRequest(SQLModel):
     staff_id: int
     pin: str
