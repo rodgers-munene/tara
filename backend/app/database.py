@@ -111,6 +111,7 @@ def run_migrations():
                     AND owner.subscription_ends_at IS NULL
                     AND owner.plan = 'free'
                     AND owner.subscription_status = 'trialing'
+                    AND sub.plan IS NOT NULL
             """))
             conn.commit()
 
