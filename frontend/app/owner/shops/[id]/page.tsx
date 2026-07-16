@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, Users, Zap, CheckCircle, XCircle, Store,
   TrendingUp, Receipt, Calendar, Mail, Phone, Wallet, Smartphone,
-  Award, PackageX, RotateCcw, BarChart3,
+  Award, PackageX, RotateCcw, BarChart3, Lock,
 } from "lucide-react";
 import { useOwnerAuth } from "../../../components/OwnerAuthProvider";
 import {
@@ -386,7 +386,14 @@ export default function ShopDetailsPage() {
                   <Award size={15} style={{ color: "var(--text-3)" }} />
                   <h3 className="text-sm font-bold" style={{ color: "var(--text)" }}>Staff performance (30d)</h3>
                 </div>
-                {analytics.staff_performance.length === 0 ? (
+                {analytics.kpi_locked ? (
+                  <div className="flex flex-col items-center gap-2 py-3 text-center">
+                    <Lock size={18} style={{ color: "var(--text-3)" }} />
+                    <p className="text-xs" style={{ color: "var(--text-3)" }}>
+                      Employee performance tracking is a Medium Enterprise feature — upgrade to unlock it.
+                    </p>
+                  </div>
+                ) : analytics.staff_performance.length === 0 ? (
                   <p className="text-sm" style={{ color: "var(--text-3)" }}>No sales yet</p>
                 ) : (
                   <div className="flex flex-col gap-2.5">

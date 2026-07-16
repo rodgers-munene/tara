@@ -47,6 +47,9 @@ def run_migrations():
                 "ALTER TABLE shop ADD COLUMN IF NOT EXISTS subscription_status VARCHAR NOT NULL DEFAULT 'trialing'",
                 "ALTER TABLE shop ADD COLUMN IF NOT EXISTS billing_cycle VARCHAR",
                 "ALTER TABLE shop ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMP",
+                # `plan` was superseded by owner.plan and dropped from the Shop model, but the
+                # column's stale NOT NULL constraint still blocks every shop insert that omits it.
+                "ALTER TABLE shop ALTER COLUMN plan DROP NOT NULL",
             ]
             for stmt in column_migrations:
                 conn.execute(text(stmt))

@@ -47,6 +47,8 @@ export interface Shop {
   subscription_status: string;
   subscription_ends_at: string | null;
   staff_count: number;
+  total_staff_count: number;
+  max_staff: number;
   today_sales: number;
   today_revenue: number;
   week_revenue: number;
@@ -112,6 +114,7 @@ export interface ShopAnalytics {
   returns_count: number;
   top_products: ProductStat[];
   staff_performance: StaffStat[];
+  kpi_locked: boolean;
   low_stock_count: number;
   low_stock_items: LowStockItem[];
 }
@@ -350,7 +353,10 @@ export function StaffPanel({
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: "var(--border)" }}>
           <div>
             <p className="font-bold" style={{ color: "var(--text)" }}>{shop.name}</p>
-            <p className="text-xs" style={{ color: "var(--text-3)" }}>Staff management</p>
+            <p className="text-xs" style={{ color: "var(--text-3)" }}>
+              Staff management
+              {shop.max_staff ? ` · ${shop.total_staff_count}/${shop.max_staff} slots used` : ""}
+            </p>
           </div>
           <button onClick={onClose} style={{ color: "var(--text-3)" }}><X size={20} /></button>
         </div>
@@ -402,13 +408,20 @@ export function StaffPanel({
 
         <div className="px-6 pb-6 pt-2 shrink-0 border-t" style={{ borderColor: "var(--border)" }}>
           {!showAdd ? (
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold"
-              style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
-            >
-              <UserPlus size={15} /> Add staff member
-            </button>
+            shop.max_staff && shop.total_staff_count >= shop.max_staff ? (
+              <p className="text-xs text-center rounded-2xl py-3 px-3"
+                style={{ background: "var(--danger-light)", color: "var(--danger)" }}>
+                You've used all {shop.max_staff} staff slots on your {shop.plan} plan — upgrade to add more.
+              </p>
+            ) : (
+              <button
+                onClick={() => setShowAdd(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold"
+                style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
+              >
+                <UserPlus size={15} /> Add staff member
+              </button>
+            )
           ) : (
             <form onSubmit={addStaff} className="flex flex-col gap-2.5 pt-2">
               <div className="flex gap-2">

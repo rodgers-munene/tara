@@ -10,7 +10,7 @@ from app.database import get_session
 from app.dependencies import require_owner
 from app.email import send_email
 from app.models import Owner, PasswordReset, Shop, Staff, Sale, Product
-from app.pricing import max_shops_for
+from app.pricing import max_shops_for, max_staff_for, has_feature
 from app.schemas import (
     OwnerCreate, OwnerLogin, OwnerSelfUpdate,
     ForgotPasswordRequest, ResetPasswordRequest,
@@ -203,6 +203,11 @@ def list_shops(
     shops = session.exec(select(Shop).where(Shop.owner_id == owner_id).order_by(Shop.created_at.desc())).all()
     today = date.today()
     week_ago = today - timedelta(days=6)
+    owner_shop_ids = [s.id for s in shops]
+    total_staff_count = len(session.exec(
+        select(Staff).where(Staff.shop_id.in_(owner_shop_ids), Staff.active == True)
+    ).all())
+    max_staff = max_staff_for(owner)
     result = []
     for shop in shops:
         staff_list = session.exec(
@@ -220,6 +225,8 @@ def list_shops(
             **_subscription_fields(owner),
             "active": shop.active,
             "staff_count": len(staff_list),
+            "total_staff_count": total_staff_count,
+            "max_staff": max_staff,
             "today_sales": len(today_sales),
             "today_revenue": round(sum(s.total for s in today_sales), 2),
             "week_revenue": round(sum(s.total for s in week_sales), 2),
@@ -244,6 +251,10 @@ def get_shop(
     staff_list = session.exec(
         select(Staff).where(Staff.shop_id == shop_id, Staff.active == True).order_by(Staff.id)
     ).all()
+    owner_shop_ids = [s.id for s in session.exec(select(Shop).where(Shop.owner_id == owner_id)).all()]
+    total_staff_count = len(session.exec(
+        select(Staff).where(Staff.shop_id.in_(owner_shop_ids), Staff.active == True)
+    ).all())
     all_sales = session.exec(
         select(Sale).where(Sale.shop_id == shop_id, Sale.is_returned == False)
     ).all()
@@ -266,6 +277,8 @@ def get_shop(
         "created_at": shop.created_at.isoformat(),
         "staff": [{"id": s.id, "name": s.name, "role": s.role} for s in staff_list],
         "staff_count": len(staff_list),
+        "total_staff_count": total_staff_count,
+        "max_staff": max_staff_for(owner),
         "today_sales": len(today_sales),
         "today_revenue": round(sum(s.total for s in today_sales), 2),
         "week_sales": len(week_sales),
@@ -284,9 +297,12 @@ def get_shop_analytics(
     payload: dict = Depends(require_owner),
 ):
     owner_id = int(payload["sub"])
+    owner = session.get(Owner, owner_id)
     shop = session.get(Shop, shop_id)
-    if not shop or shop.owner_id != owner_id:
+    if not owner or not shop or shop.owner_id != owner_id:
         raise HTTPException(status_code=404, detail="Shop not found")
+
+    kpi_unlocked = has_feature(owner, "kpi_tracking")
 
     today = date.today()
     chart_start = today - timedelta(days=13)
@@ -362,7 +378,8 @@ def get_shop_analytics(
         "avg_sale_value": round(sum(s.total for s in month_sales) / len(month_sales), 2) if month_sales else 0,
         "returns_count": len([s for s in all_sales if s.is_returned and s.created_at.date() >= month_ago]),
         "top_products": top_products,
-        "staff_performance": staff_performance,
+        "staff_performance": staff_performance if kpi_unlocked else [],
+        "kpi_locked": not kpi_unlocked,
         "low_stock_count": len(low_stock),
         "low_stock_items": [{"id": p.id, "name": p.name, "stock": p.stock} for p in low_stock[:5]],
     }
@@ -420,6 +437,13 @@ def create_shop(
         **_subscription_fields(owner),
         "active": shop.active,
         "staff_count": 1,
+        "total_staff_count": len(session.exec(
+            select(Staff).where(
+                Staff.shop_id.in_([s.id for s in session.exec(select(Shop).where(Shop.owner_id == owner_id)).all()]),
+                Staff.active == True,
+            )
+        ).all()),
+        "max_staff": max_staff_for(owner),
         "manager_id": manager.id,
         "created_at": shop.created_at.isoformat(),
     }
@@ -473,9 +497,20 @@ def add_staff(
     payload: dict = Depends(require_owner),
 ):
     owner_id = int(payload["sub"])
+    owner = session.get(Owner, owner_id)
     shop = session.get(Shop, shop_id)
-    if not shop or shop.owner_id != owner_id:
+    if not owner or not shop or shop.owner_id != owner_id:
         raise HTTPException(status_code=404, detail="Shop not found")
+
+    owner_shop_ids = [s.id for s in session.exec(select(Shop).where(Shop.owner_id == owner_id)).all()]
+    staff_count = len(session.exec(
+        select(Staff).where(Staff.shop_id.in_(owner_shop_ids), Staff.active == True)
+    ).all())
+    limit = max_staff_for(owner)
+    if staff_count >= limit:
+        detail = f"Your {owner.plan} plan allows up to {limit} staff across all your stores — upgrade to add more."
+        raise HTTPException(status_code=403, detail=detail)
+
     pin_hash = bcrypt.hashpw(data.pin.encode(), bcrypt.gensalt()).decode()
     staff = Staff(name=data.name, pin_hash=pin_hash, role=data.role, shop_id=shop_id)
     session.add(staff)
