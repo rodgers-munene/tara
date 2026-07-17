@@ -1,7 +1,7 @@
 import os
 import bcrypt
 import jwt
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
@@ -218,10 +218,40 @@ def platform_stats(
     shops = session.exec(select(Shop)).all()
     sales = session.exec(select(Sale).where(Sale.is_returned == False)).all()
     total_revenue = round(sum(s.total for s in sales), 2)
+
+    today = date.today()
+    chart_start = today - timedelta(days=13)
+
+    signups_chart = []
+    revenue_chart = []
+    for i in range(14):
+        d = chart_start + timedelta(days=i)
+        day_owners = [o for o in owners if o.created_at.date() == d]
+        day_sales = [s for s in sales if s.created_at.date() == d]
+        label = {"date": d.isoformat(), "day": d.strftime("%a %d")}
+        signups_chart.append({**label, "count": len(day_owners)})
+        revenue_chart.append({**label, "total": round(sum(s.total for s in day_sales), 2)})
+
+    plan_order = ["free", "small", "medium"]
+    plan_counts: dict[str, int] = {p: 0 for p in plan_order}
+    for o in owners:
+        plan_counts[o.plan] = plan_counts.get(o.plan, 0) + 1
+    plan_breakdown = [{"plan": p, "count": plan_counts[p]} for p in plan_counts]
+
+    status_order = ["trialing", "active", "expired"]
+    status_counts: dict[str, int] = {s: 0 for s in status_order}
+    for o in owners:
+        status_counts[o.subscription_status] = status_counts.get(o.subscription_status, 0) + 1
+    status_breakdown = [{"status": s, "count": status_counts[s]} for s in status_counts]
+
     return {
         "total_owners": len(owners),
         "active_owners": sum(1 for o in owners if o.active),
         "total_shops": len(shops),
         "total_sales": len(sales),
         "total_revenue": total_revenue,
+        "signups_chart": signups_chart,
+        "revenue_chart": revenue_chart,
+        "plan_breakdown": plan_breakdown,
+        "status_breakdown": status_breakdown,
     }

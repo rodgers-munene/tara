@@ -39,6 +39,7 @@ def run_migrations():
             column_migrations = [
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS discount FLOAT NOT NULL DEFAULT 0",
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS change_given FLOAT NOT NULL DEFAULT 0",
+                "ALTER TABLE sale ADD COLUMN IF NOT EXISTS mpesa_ref VARCHAR",
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS mpesa_phone VARCHAR",
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS is_returned BOOLEAN NOT NULL DEFAULT FALSE",
                 "ALTER TABLE product ADD COLUMN IF NOT EXISTS buying_price FLOAT NOT NULL DEFAULT 0",
@@ -50,6 +51,20 @@ def run_migrations():
                 # `plan` was superseded by owner.plan and dropped from the Shop model, but the
                 # column's stale NOT NULL constraint still blocks every shop insert that omits it.
                 "ALTER TABLE shop ALTER COLUMN plan DROP NOT NULL",
+                # Audit (prompted by the mpesa_ref incident above): every other model field on
+                # a pre-multi-tenant table that had no matching migration here, so a DB whose
+                # tables predate these columns doesn't 500 on the first insert that sets them.
+                "ALTER TABLE shop ADD COLUMN IF NOT EXISTS email VARCHAR",
+                "ALTER TABLE shop ADD COLUMN IF NOT EXISTS phone VARCHAR",
+                "ALTER TABLE sale ADD COLUMN IF NOT EXISTS cashier_id INTEGER REFERENCES staff(id)",
+                "ALTER TABLE sale ADD COLUMN IF NOT EXISTS cashier_name VARCHAR",
+                "ALTER TABLE category ADD COLUMN IF NOT EXISTS color VARCHAR",
+                "ALTER TABLE product ADD COLUMN IF NOT EXISTS barcode VARCHAR",
+                "ALTER TABLE customer ADD COLUMN IF NOT EXISTS notes VARCHAR",
+                "ALTER TABLE credit_entry ADD COLUMN IF NOT EXISTS note VARCHAR",
+                "ALTER TABLE day_close ADD COLUMN IF NOT EXISTS notes VARCHAR",
+                "ALTER TABLE day_close ADD COLUMN IF NOT EXISTS closed_by VARCHAR",
+                "ALTER TABLE staff ADD COLUMN IF NOT EXISTS role VARCHAR NOT NULL DEFAULT 'cashier'",
             ]
             for stmt in column_migrations:
                 conn.execute(text(stmt))

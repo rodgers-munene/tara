@@ -1,5 +1,6 @@
 from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import get_current_user
@@ -10,8 +11,12 @@ router = APIRouter(prefix="/sales", tags=["sales"])
 
 
 def _generate_receipt(session: Session, shop_id: int) -> str:
+    # receipt_number is unique across the whole table, not just within a shop, so
+    # the shop_id must be part of the prefix — otherwise two different shops both
+    # counting their own zero same-day sales would both compute "...-0001" and
+    # collide on the global constraint every single retry, not just rarely.
     today = datetime.utcnow().strftime("%Y%m%d")
-    prefix = f"TRA-{today}-"
+    prefix = f"TRA-{shop_id}-{today}-"
     count = len(session.exec(
         select(Sale)
         .where(Sale.receipt_number.startswith(prefix))
@@ -67,7 +72,6 @@ def create_sale(
     change = round(data.amount_paid - total, 2) if data.payment_method == "cash" else 0.0
 
     sale = Sale(
-        receipt_number=_generate_receipt(session, shop_id),
         total=total,
         discount=round(discount, 2),
         payment_method=data.payment_method,
@@ -79,8 +83,22 @@ def create_sale(
         cashier_name=current_user["name"],
         shop_id=shop_id,
     )
-    session.add(sale)
-    session.flush()
+
+    # Receipt numbers are assigned by counting same-day rows, which isn't atomic —
+    # two near-simultaneous sales (e.g. a fast double-tap on submit) can compute the
+    # same number. Retry with a freshly counted number on a unique-constraint clash
+    # rather than surfacing a 500 for what's really just a numbering collision.
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        sale.receipt_number = _generate_receipt(session, shop_id)
+        session.add(sale)
+        try:
+            session.flush()
+            break
+        except IntegrityError:
+            session.rollback()
+            if attempt == max_attempts - 1:
+                raise HTTPException(status_code=409, detail="Could not assign a receipt number, please try again")
 
     for entry in items_data:
         sale_item = SaleItem(

@@ -55,6 +55,10 @@ export interface PlatformStats {
   total_shops: number;
   total_sales: number;
   total_revenue: number;
+  signups_chart: { date: string; day: string; count: number }[];
+  revenue_chart: { date: string; day: string; total: number }[];
+  plan_breakdown: { plan: string; count: number }[];
+  status_breakdown: { status: string; count: number }[];
 }
 
 export interface Shop {

@@ -471,10 +471,12 @@ function CartSheet({
 // ── Payment modal ─────────────────────────────────────────────────────────────
 function PaymentModal({
   total,
+  submitting,
   onClose,
   onComplete,
 }: {
   total: number;
+  submitting: boolean;
   onClose: () => void;
   onComplete: (
     method: "cash" | "mpesa",
@@ -580,7 +582,7 @@ function PaymentModal({
           )}
           <button
             onClick={() => onComplete("cash", amountNum)}
-            disabled={amountNum < total}
+            disabled={amountNum < total || submitting}
             className="w-full rounded-xl font-semibold text-base text-white transition-all active:scale-98 disabled:opacity-40"
             style={{ background: "var(--brand)", height: 52 }}
           >
@@ -634,7 +636,7 @@ function PaymentModal({
           )}
           <button
             onClick={() => onComplete("mpesa", amountNum)}
-            disabled={amountNum < total}
+            disabled={amountNum < total || submitting}
             className="w-full rounded-xl font-semibold text-base text-white transition-all active:scale-98 disabled:opacity-40"
             style={{ background: "var(--mpesa)", height: 52 }}
           >
@@ -831,6 +833,7 @@ export default function SellPage() {
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [offlineQueued, setOfflineQueued] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [saleError, setSaleError] = useState<string | null>(null);
   const [pendingPayload, setPendingPayload] = useState<SaleCreate | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -898,6 +901,11 @@ export default function SellPage() {
   }, []);
 
   const submitSale = useCallback(async (payload: SaleCreate) => {
+    // submittingRef is checked (not the `submitting` state) because this
+    // callback's deps are frozen at mount — the state var it'd otherwise
+    // read is a stale closure, always the value from the first render.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setSaleError(null);
     try {
@@ -915,6 +923,7 @@ export default function SellPage() {
       );
       setPendingPayload(payload);
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }, []);
@@ -1093,6 +1102,7 @@ export default function SellPage() {
       {payOpen && (
         <PaymentModal
           total={netTotal}
+          submitting={submitting}
           onClose={() => { setPayOpen(false); setCartOpen(true); }}
           onComplete={handlePaymentComplete}
         />
@@ -1128,7 +1138,8 @@ export default function SellPage() {
             </div>
             <button
               onClick={() => submitSale(pendingPayload)}
-              className="w-full rounded-xl py-3 font-semibold text-sm text-white"
+              disabled={submitting}
+              className="w-full rounded-xl py-3 font-semibold text-sm text-white disabled:opacity-40"
               style={{ background: "var(--brand)" }}
             >
               Try again

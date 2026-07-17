@@ -1,5 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import get_current_user
@@ -10,8 +11,12 @@ router = APIRouter(prefix="/returns", tags=["returns"])
 
 
 def _generate_return_number(session: Session, shop_id: int) -> str:
+    # return_number is unique across the whole table, not just within a shop, so
+    # the shop_id must be part of the prefix — otherwise two different shops both
+    # counting their own zero same-day returns would both compute "...-0001" and
+    # collide on the global constraint every single retry, not just rarely.
     today = datetime.utcnow().strftime("%Y%m%d")
-    prefix = f"RET-{today}-"
+    prefix = f"RET-{shop_id}-{today}-"
     count = len(session.exec(
         select(SaleReturn)
         .where(SaleReturn.return_number.startswith(prefix))
@@ -47,14 +52,29 @@ def create_return(
     session.add(sale)
 
     sale_return = SaleReturn(
-        return_number=_generate_return_number(session, shop_id),
         sale_id=sale.id,
         total_refunded=sale.total,
         reason=data.reason,
         processed_by=current_user.get("name"),
         shop_id=shop_id,
     )
-    session.add(sale_return)
+
+    # A plain session.rollback() on collision would also discard the stock
+    # restoration and sale.is_returned flush above, not just the sale_return
+    # insert — so each attempt runs in its own SAVEPOINT instead, keeping the
+    # rest of this transaction intact if a retry is needed.
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        sale_return.return_number = _generate_return_number(session, shop_id)
+        session.add(sale_return)
+        try:
+            with session.begin_nested():
+                session.flush()
+            break
+        except IntegrityError:
+            if attempt == max_attempts - 1:
+                raise HTTPException(status_code=409, detail="Could not assign a return number, please try again")
+
     session.commit()
     session.refresh(sale_return)
     return sale_return

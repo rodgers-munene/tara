@@ -62,7 +62,7 @@ export default function AdminOwnersPage() {
   }
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-6 lg:px-8 lg:py-10 flex flex-col gap-6 pb-10">
+    <main className="w-full max-w-400 px-4 py-6 lg:px-8 lg:py-10 flex flex-col gap-6 pb-10">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>Owner accounts</h1>
