@@ -1,15 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { api } from "../../../lib/api";
-import { useOwnerAuth } from "../../components/OwnerAuthProvider";
 
 export default function OwnerSignupPage() {
-  const { login } = useOwnerAuth();
   const [form, setForm] = useState({ name: "", email: "", pin: "", confirm: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
 
   function set(key: keyof typeof form, val: string) {
     setForm((f) => ({ ...f, [key]: val }));
@@ -28,17 +27,40 @@ export default function OwnerSignupPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.post<{ access_token: string }>("/owner/signup/", {
+      await api.post("/owner/signup/", {
         name: form.name.trim(),
         email: form.email.trim().toLowerCase(),
         pin: form.pin,
       });
-      login(res.access_token);
+      setDone(true);
     } catch (err: unknown) {
       setError((err as Error).message ?? "Signup failed. Please try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (done) {
+    return (
+      <div
+        className="flex min-h-svh flex-col items-center justify-center px-6 py-12 text-center"
+        style={{ background: "var(--bg)" }}
+      >
+        <div
+          className="flex h-14 w-14 items-center justify-center rounded-2xl mb-6"
+          style={{ background: "var(--brand-light)" }}
+        >
+          <CheckCircle2 size={26} style={{ color: "var(--brand)" }} />
+        </div>
+        <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>
+          Check your email
+        </h1>
+        <p className="text-sm max-w-xs" style={{ color: "var(--text-2)" }}>
+          We&apos;ve sent a verification link to {form.email.trim()}. Click it to verify your
+          account before signing in.
+        </p>
+      </div>
+    );
   }
 
   const inputStyle = {

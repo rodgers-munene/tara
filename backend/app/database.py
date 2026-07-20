@@ -98,6 +98,9 @@ def run_migrations():
                 "ALTER TABLE owner ADD COLUMN IF NOT EXISTS subscription_status VARCHAR NOT NULL DEFAULT 'trialing'",
                 "ALTER TABLE owner ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMP",
                 "ALTER TABLE owner ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP",
+                "ALTER TABLE owner ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE",
+                "ALTER TABLE owner ADD COLUMN IF NOT EXISTS trial_warning_sent_at TIMESTAMP",
+                "ALTER TABLE owner ADD COLUMN IF NOT EXISTS subscription_warning_sent_at TIMESTAMP",
             ]
             for stmt in owner_column_migrations:
                 conn.execute(text(stmt))

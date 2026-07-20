@@ -2,6 +2,7 @@ from app.schemas.shop import ShopRead, ShopCreate, ShopUpdate
 from app.schemas.owner import (
     OwnerCreate, OwnerRead, OwnerLogin, OwnerSelfUpdate,
     ForgotPasswordRequest, ResetPasswordRequest,
+    VerifyEmailRequest, ResendVerificationRequest,
     SuperAdminSetup, SuperAdminLogin,
 )
 from app.schemas.staff import StaffRead, StaffCreate, StaffPinReset, LoginRequest, LoginResponse
@@ -18,6 +19,7 @@ __all__ = [
     "ShopRead", "ShopCreate", "ShopUpdate",
     "OwnerCreate", "OwnerRead", "OwnerLogin", "OwnerSelfUpdate",
     "ForgotPasswordRequest", "ResetPasswordRequest",
+    "VerifyEmailRequest", "ResendVerificationRequest",
     "SuperAdminSetup", "SuperAdminLogin",
     "StaffRead", "StaffCreate", "StaffPinReset", "LoginRequest", "LoginResponse",
     "CategoryRead", "CategoryCreate", "ProductRead", "ProductCreate", "ProductUpdate",

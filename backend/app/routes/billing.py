@@ -9,13 +9,14 @@ from sqlmodel import Session
 from app.database import get_session
 from app.dependencies import require_owner
 from app.models import Owner
+from app.notifications import send_subscription_success_email
 from app.schemas import CheckoutRequest
 from app.pricing import PRICING_KES, activate_subscription
 
 router = APIRouter(tags=["billing"])
 
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "https://tara-sigma.vercel.app")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://tara.ekshop.store")
 PAYSTACK_BASE = "https://api.paystack.co"
 
 
@@ -134,5 +135,8 @@ async def paystack_webhook(request: Request, session: Session = Depends(get_sess
         cycle = metadata.get("cycle")
         if owner_id and tier and cycle:
             activate_subscription(session, int(owner_id), tier, cycle)
+            owner = session.get(Owner, int(owner_id))
+            if owner:
+                send_subscription_success_email(owner)
 
     return {"received": True}

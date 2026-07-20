@@ -78,5 +78,6 @@ def activate_subscription(session: Session, owner_id: int, tier: str, cycle: str
     owner.billing_cycle = cycle
     owner.subscription_status = "active"
     owner.subscription_ends_at = base + timedelta(days=days)
+    owner.subscription_warning_sent_at = None
     session.add(owner)
     session.commit()

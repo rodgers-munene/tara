@@ -36,6 +36,14 @@ class ResetPasswordRequest(SQLModel):
     pin: str
 
 
+class VerifyEmailRequest(SQLModel):
+    token: str
+
+
+class ResendVerificationRequest(SQLModel):
+    email: str
+
+
 class SuperAdminSetup(SQLModel):
     name: str
     email: str

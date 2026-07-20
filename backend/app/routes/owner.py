@@ -10,19 +10,22 @@ from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import require_owner
 from app.email import send_email
-from app.models import Owner, PasswordReset, Shop, Staff, Sale, Product
+from app.models import Owner, PasswordReset, EmailVerification, Shop, Staff, Sale, Product
+from app.notifications import send_verification_email
 from app.pricing import max_shops_for, max_staff_for, has_feature
 from app.schemas import (
     OwnerCreate, OwnerLogin, OwnerSelfUpdate,
     ForgotPasswordRequest, ResetPasswordRequest,
+    VerifyEmailRequest, ResendVerificationRequest,
     ShopCreate, ShopUpdate, StaffCreate, StaffPinReset,
 )
 
 
 SECRET_KEY = os.getenv("JWT_SECRET", "tara-dev-secret-change-in-production")
 ALGORITHM = "HS256"
-FRONTEND_URL = os.getenv("FRONTEND_URL", "https://tara-sigma.vercel.app")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://tara.ekshop.store")
 RESET_TOKEN_TTL = timedelta(minutes=30)
+VERIFICATION_TOKEN_TTL = timedelta(hours=24)
 
 router = APIRouter(prefix="/owner", tags=["owner"])
 
@@ -83,12 +86,18 @@ def owner_signup(data: OwnerCreate, session: Session = Depends(get_session)):
     session.add(owner)
     session.commit()
     session.refresh(owner)
-    token = jwt.encode(
-        {"sub": str(owner.id), "name": owner.name, "owner": True},
-        SECRET_KEY,
-        algorithm=ALGORITHM,
+
+    token = secrets.token_urlsafe(32)
+    verification = EmailVerification(
+        owner_id=owner.id,
+        token=token,
+        expires_at=datetime.utcnow() + VERIFICATION_TOKEN_TTL,
     )
-    return {"access_token": token, "token_type": "bearer", "name": owner.name}
+    session.add(verification)
+    session.commit()
+    send_verification_email(owner, token)
+
+    return {"message": "Check your email to verify your account before signing in."}
 
 
 @router.post("/login/")
@@ -100,6 +109,11 @@ def owner_login(data: OwnerLogin, session: Session = Depends(get_session)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not bcrypt.checkpw(data.pin.encode(), owner.pin_hash.encode()):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not owner.email_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="Please verify your email before signing in. Check your inbox for the link.",
+        )
     token = jwt.encode(
         {"sub": str(owner.id), "name": owner.name, "owner": True},
         SECRET_KEY,
@@ -160,6 +174,52 @@ def reset_password(data: ResetPasswordRequest, session: Session = Depends(get_se
     return {"message": "Your PIN has been reset. You can now sign in."}
 
 
+@router.post("/verify-email")
+def verify_email(data: VerifyEmailRequest, session: Session = Depends(get_session)):
+    verification = session.exec(
+        select(EmailVerification).where(EmailVerification.token == data.token)
+    ).first()
+    if not verification or verification.used or verification.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="This verification link is invalid or has expired")
+
+    owner = session.get(Owner, verification.owner_id)
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner not found")
+
+    owner.email_verified = True
+    verification.used = True
+    session.add(owner)
+    session.add(verification)
+    session.commit()
+
+    token = jwt.encode(
+        {"sub": str(owner.id), "name": owner.name, "owner": True},
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+    return {"access_token": token, "token_type": "bearer", "name": owner.name}
+
+
+@router.post("/resend-verification")
+def resend_verification(data: ResendVerificationRequest, session: Session = Depends(get_session)):
+    generic_response = {"message": "If an unverified account exists for that email, a new link has been sent."}
+
+    owner = session.exec(select(Owner).where(Owner.email == data.email.lower())).first()
+    if not owner or not owner.active or owner.email_verified:
+        return generic_response  # don't leak whether the email is registered or already verified
+
+    token = secrets.token_urlsafe(32)
+    verification = EmailVerification(
+        owner_id=owner.id,
+        token=token,
+        expires_at=datetime.utcnow() + VERIFICATION_TOKEN_TTL,
+    )
+    session.add(verification)
+    session.commit()
+    send_verification_email(owner, token)
+    return generic_response
+
+
 # Profile
 
 @router.get("/me")
@@ -167,7 +227,13 @@ def get_me(session: Session = Depends(get_session), payload: dict = Depends(requ
     owner = session.get(Owner, int(payload["sub"]))
     if not owner:
         raise HTTPException(status_code=404, detail="Owner not found")
-    return {"id": owner.id, "name": owner.name, "email": owner.email, "created_at": owner.created_at.isoformat()}
+    return {
+        "id": owner.id,
+        "name": owner.name,
+        "email": owner.email,
+        "email_verified": owner.email_verified,
+        "created_at": owner.created_at.isoformat(),
+    }
 
 
 @router.patch("/me")

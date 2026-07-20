@@ -1,0 +1,19 @@
+name: Check expiring trials/subscriptions
+
+on:
+  schedule:
+    # 06:00 UTC daily
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping-cron-endpoint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger expiry check
+        run: |
+          curl -sf -X POST "${BACKEND_URL}/cron/check-expiring" \
+            -H "X-Cron-Secret: ${CRON_SECRET}"
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

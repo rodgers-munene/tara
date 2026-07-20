@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import require_superadmin
 from app.models import Shop, SuperAdmin, Owner
+from app.notifications import send_subscription_success_email
 from app.schemas import ShopUpdate, SuperAdminSetup, SuperAdminLogin, OwnerCreate
 from app.pricing import PRICING_KES, activate_subscription
 
@@ -202,6 +203,7 @@ def activate_owner_subscription(
         raise HTTPException(status_code=400, detail="Invalid plan/billing cycle combination")
     activate_subscription(session, owner_id, tier, cycle)
     session.refresh(owner)
+    send_subscription_success_email(owner)
     shop_count = len(session.exec(select(Shop).where(Shop.owner_id == owner.id)).all())
     return _owner_dict(owner, shop_count)
 

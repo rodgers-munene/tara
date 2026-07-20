@@ -6,17 +6,21 @@ import { api } from "../../../lib/api";
 import { useOwnerAuth } from "../../components/OwnerAuthProvider";
 import AuthBackdrop from "../../components/AuthBackdrop";
 
+const UNVERIFIED_MESSAGE = "Please verify your email before signing in. Check your inbox for the link.";
+
 export default function OwnerLoginPage() {
   const { login } = useOwnerAuth();
   const [email, setEmail] = useState("");
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setResendState("idle");
     try {
       const res = await api.post<{ access_token: string }>("/owner/login/", {
         email: email.trim().toLowerCase(),
@@ -27,6 +31,15 @@ export default function OwnerLoginPage() {
       setError((err as Error).message ?? "Invalid credentials");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    setResendState("sending");
+    try {
+      await api.post("/owner/resend-verification", { email: email.trim().toLowerCase() });
+    } finally {
+      setResendState("sent");
     }
   }
 
@@ -103,10 +116,20 @@ export default function OwnerLoginPage() {
         </div>
 
         {error && (
-          <p className="text-sm rounded-xl px-4 py-2.5"
-            style={{ background: "var(--danger-light)", color: "var(--danger)" }}>
-            {error}
-          </p>
+          <div className="rounded-xl px-4 py-2.5" style={{ background: "var(--danger-light)" }}>
+            <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>
+            {error === UNVERIFIED_MESSAGE && (
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resendState !== "idle"}
+                className="text-sm font-medium mt-1 disabled:opacity-60"
+                style={{ color: "var(--danger)", textDecoration: "underline" }}
+              >
+                {resendState === "sent" ? "Verification email sent" : "Resend verification email"}
+              </button>
+            )}
+          </div>
         )}
 
         <button
