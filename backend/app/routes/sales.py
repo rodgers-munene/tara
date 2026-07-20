@@ -51,7 +51,10 @@ def create_sale(
                 detail=f"Not enough stock for '{product.name}'. Available: {product.stock}"
             )
 
-        subtotal = round(product.price * item_in.quantity, 2)
+        # Weight/bundle-priced lines (e.g. 0.417kg * 600/kg) produce fractional
+        # shillings; Kenyan cash transactions don't use decimals, so round each
+        # line to the nearest whole KES rather than carrying cents through.
+        subtotal = round(product.price * item_in.quantity)
         subtotal_total += subtotal
         items_data.append({
             "product": product,
@@ -64,16 +67,16 @@ def create_sale(
     if discount > subtotal_total:
         raise HTTPException(status_code=400, detail="Discount exceeds order total")
 
-    total = round(subtotal_total - discount, 2)
+    total = round(subtotal_total - discount)
 
     if data.payment_method == "cash" and data.amount_paid < total:
         raise HTTPException(status_code=400, detail="Amount paid is less than total")
 
-    change = round(data.amount_paid - total, 2) if data.payment_method == "cash" else 0.0
+    change = round(data.amount_paid - total) if data.payment_method == "cash" else 0.0
 
     sale = Sale(
         total=total,
-        discount=round(discount, 2),
+        discount=round(discount),
         payment_method=data.payment_method,
         amount_paid=data.amount_paid,
         change_given=change,

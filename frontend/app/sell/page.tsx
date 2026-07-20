@@ -1051,7 +1051,10 @@ export default function SellPage() {
     if (c.id && c.color) catColorMap[c.id] = c.color;
   }
 
-  const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
+  // Rounds each line to the nearest whole KES, same as the backend does when
+  // it recomputes subtotals at sale creation, so what's shown here always
+  // matches what actually gets charged.
+  const cartTotal = cart.reduce((s, i) => s + Math.round(i.product.price * i.qty), 0);
   const cartCount = cart.reduce((s, i) => s + (i.product.pricing_mode === "weight" ? 1 : i.qty), 0);
   const netTotal = cartTotal - discountAmount;
 
