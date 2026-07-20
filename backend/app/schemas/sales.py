@@ -5,14 +5,14 @@ from sqlmodel import SQLModel
 
 class SaleItemCreate(SQLModel):
     product_id: int
-    quantity: int
+    quantity: float
 
 
 class SaleItemRead(SQLModel):
     id: int
     product_id: Optional[int]
     product_name: str
-    quantity: int
+    quantity: float
     unit_price: float
     subtotal: float
 

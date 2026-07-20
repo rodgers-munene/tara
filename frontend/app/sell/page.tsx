@@ -39,26 +39,35 @@ function ProductTile({
   catColor,
   onAdd,
   onSubtract,
+  onOpenWeight,
 }: {
   product: Product;
   qty: number;
   catColor: string | null;
   onAdd: () => void;
   onSubtract: () => void;
+  onOpenWeight: () => void;
 }) {
-  const outOfStock = product.stock === 0;
-  const lowStock = product.stock > 0 && product.stock <= product.min_stock;
+  const isWeight = product.pricing_mode === "weight";
+  const outOfStock = product.track_stock && product.stock <= 0;
+  const lowStock = product.track_stock && product.stock > 0 && product.stock <= product.min_stock;
+
+  function handleTap() {
+    if (outOfStock) return;
+    if (isWeight) { onOpenWeight(); return; }
+    onAdd();
+  }
 
   return (
     <div
       role="button"
       tabIndex={outOfStock ? -1 : 0}
       aria-disabled={outOfStock}
-      onClick={() => { if (!outOfStock) onAdd(); }}
+      onClick={handleTap}
       onKeyDown={(e) => {
         if (!outOfStock && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
-          onAdd();
+          handleTap();
         }
       }}
       className="relative flex flex-col justify-between rounded-xl p-3 text-left transition-all active:scale-95 select-none"
@@ -79,7 +88,7 @@ function ProductTile({
       )}
 
       {/* In-cart stepper — subtle, only appears once an item has been added */}
-      {qty > 0 && (
+      {qty > 0 && !isWeight && (
         <div
           className="absolute top-2 right-2 flex items-center gap-1"
           onClick={(e) => e.stopPropagation()}
@@ -110,21 +119,40 @@ function ProductTile({
         </div>
       )}
 
-      <span
-        className="text-sm font-semibold leading-snug"
-        style={{ color: "var(--text)", paddingLeft: catColor ? 12 : 0, paddingRight: qty > 0 ? 64 : 24 }}
-      >
-        {product.name}
-      </span>
+      {/* Weight-mode: a single tap-to-edit chip showing the kg currently in cart */}
+      {qty > 0 && isWeight && (
+        <div
+          className="absolute top-2 right-2"
+          onClick={(e) => { e.stopPropagation(); onOpenWeight(); }}
+        >
+          <span
+            className="flex h-5 items-center justify-center rounded-full px-2 text-[11px] font-bold text-white"
+            style={{ background: "var(--brand)" }}
+          >
+            {qty.toFixed(3)} kg
+          </span>
+        </div>
+      )}
+
+      <div style={{ paddingLeft: catColor ? 12 : 0, paddingRight: qty > 0 ? 64 : 24 }}>
+        <span className="text-sm font-semibold leading-snug block" style={{ color: "var(--text)" }}>
+          {product.name}
+        </span>
+        {!isWeight && product.unit_label && (
+          <span className="text-[10px] block mt-0.5" style={{ color: "var(--text-3)" }}>
+            {product.unit_label}
+          </span>
+        )}
+      </div>
 
       <div className="flex items-end justify-between mt-2">
         <span
           className="text-[13px] font-bold"
           style={{ color: outOfStock ? "var(--text-3)" : "var(--brand-dark)" }}
         >
-          {outOfStock ? "Out of stock" : fmtKES(product.price)}
+          {outOfStock ? "Out of stock" : isWeight ? `${fmtKES(product.price)}/kg` : fmtKES(product.price)}
         </span>
-        {!outOfStock && (
+        {!outOfStock && product.track_stock && (
           <span
             className="text-[10px] font-semibold"
             style={{ color: lowStock ? "var(--warning)" : "var(--text-3)" }}
@@ -236,12 +264,161 @@ function QtyNumpad({
   );
 }
 
+// ── Weight entry modal ───────────────────────────────────────────────────────
+function WeightEntryModal({
+  product,
+  current,
+  onConfirm,
+  onClose,
+}: {
+  product: Product;
+  current: number;
+  onConfirm: (kg: number) => void;
+  onClose: () => void;
+}) {
+  const [tab, setTab] = useState<"amount" | "kg">("amount");
+  const [amountInput, setAmountInput] = useState(current > 0 ? String(Math.round(current * product.price)) : "");
+  const [kgInput, setKgInput] = useState(current > 0 ? String(current) : "");
+
+  function handleAmountChange(v: string) {
+    setAmountInput(v);
+    const amt = parseFloat(v) || 0;
+    setKgInput(product.price > 0 ? (amt / product.price).toFixed(3) : "0");
+  }
+
+  function handleKgChange(v: string) {
+    setKgInput(v);
+    const kg = parseFloat(v) || 0;
+    setAmountInput((kg * product.price).toFixed(0));
+  }
+
+  const kg = Math.max(0, parseFloat(kgInput) || 0);
+  const amount = Math.max(0, parseFloat(amountInput) || 0);
+  const overStock = product.track_stock && kg > product.stock;
+
+  return (
+    <>
+      <div className="sheet-backdrop" onClick={onClose} style={{ zIndex: 55 }} />
+      <div
+        className="fixed bottom-0 left-0 right-0 z-60 rounded-t-2xl px-5 pb-8 pt-5"
+        style={{ background: "var(--surface)", animation: "slideUp 0.2s cubic-bezier(0.32,0.72,0,1)" }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="min-w-0">
+            <p className="font-semibold text-base truncate" style={{ color: "var(--text)" }}>
+              {product.name}
+            </p>
+            <p className="text-xs" style={{ color: "var(--text-3)" }}>
+              {fmtKES(product.price)}/kg
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full"
+            style={{ background: "var(--surface-2)" }}
+          >
+            <X size={16} style={{ color: "var(--text-2)" }} />
+          </button>
+        </div>
+
+        <div
+          className="flex rounded-xl p-1 gap-1 mb-4"
+          style={{ background: "var(--surface-2)", border: "1.5px solid var(--border)" }}
+        >
+          {(["amount", "kg"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors"
+              style={{
+                background: tab === t ? "var(--brand)" : "transparent",
+                color: tab === t ? "#fff" : "var(--text-2)",
+              }}
+            >
+              {t === "amount" ? "By amount (KES)" : "By kg"}
+            </button>
+          ))}
+        </div>
+
+        {tab === "amount" ? (
+          <div className="mb-2">
+            <label className="block text-sm font-medium mb-1.5 text-center" style={{ color: "var(--text-2)" }}>
+              Amount (KES)
+            </label>
+            <input
+              type="number"
+              inputMode="decimal"
+              value={amountInput}
+              onChange={(e) => handleAmountChange(e.target.value)}
+              placeholder="e.g. 250"
+              autoFocus
+              className="w-full rounded-xl border px-4 text-2xl font-bold outline-none transition-colors text-center"
+              style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)", height: 64 }}
+              onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+            />
+            <p className="text-sm text-center mt-2" style={{ color: "var(--text-3)" }}>
+              = {kg.toFixed(3)} kg
+            </p>
+          </div>
+        ) : (
+          <div className="mb-2">
+            <label className="block text-sm font-medium mb-1.5 text-center" style={{ color: "var(--text-2)" }}>
+              Weight (kg)
+            </label>
+            <input
+              type="number"
+              inputMode="decimal"
+              value={kgInput}
+              onChange={(e) => handleKgChange(e.target.value)}
+              placeholder="e.g. 0.5"
+              autoFocus
+              className="w-full rounded-xl border px-4 text-2xl font-bold outline-none transition-colors text-center"
+              style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)", height: 64 }}
+              onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+            />
+            <p className="text-sm text-center mt-2" style={{ color: "var(--text-3)" }}>
+              = {fmtKES(amount)}
+            </p>
+          </div>
+        )}
+
+        {overStock && (
+          <p className="text-xs text-center mb-2 font-medium" style={{ color: "var(--danger)" }}>
+            Only {product.stock.toFixed(3)} kg in stock
+          </p>
+        )}
+
+        <button
+          onClick={() => { if (kg > 0 && !overStock) onConfirm(Math.round(kg * 1000) / 1000); }}
+          disabled={kg <= 0 || overStock}
+          className="w-full rounded-xl font-semibold text-base text-white disabled:opacity-40 mt-4"
+          style={{ background: "var(--brand)", height: 52 }}
+        >
+          {current > 0 ? "Update cart" : "Add to cart"}
+        </button>
+        {current > 0 && (
+          <button
+            onClick={() => onConfirm(0)}
+            className="w-full py-3 text-sm font-medium mt-1"
+            style={{ color: "var(--danger)" }}
+          >
+            Remove from cart
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ── Cart sheet ────────────────────────────────────────────────────────────────
 function CartSheet({
   cart,
   total,
   onUpdate,
   onRemove,
+  onSetQty,
   onCharge,
   onClose,
 }: {
@@ -249,10 +426,12 @@ function CartSheet({
   total: number;
   onUpdate: (id: number, delta: number) => void;
   onRemove: (id: number) => void;
+  onSetQty: (product: Product, qty: number) => void;
   onCharge: (discountAmount: number) => void;
   onClose: () => void;
 }) {
   const [qtyPick, setQtyPick] = useState<CartItem | null>(null);
+  const [weightPick, setWeightPick] = useState<CartItem | null>(null);
   const [showDiscount, setShowDiscount] = useState(false);
   const [discType, setDiscType] = useState<"%" | "kes">("%");
   const [discValue, setDiscValue] = useState("");
@@ -274,7 +453,7 @@ function CartSheet({
           style={{ borderColor: "var(--border)" }}
         >
           <span className="font-semibold text-base" style={{ color: "var(--text)" }}>
-            Cart ({cart.reduce((s, i) => s + i.qty, 0)})
+            Cart ({cart.reduce((s, i) => s + (i.product.pricing_mode === "weight" ? 1 : i.qty), 0)})
           </span>
           <button
             onClick={onClose}
@@ -286,54 +465,67 @@ function CartSheet({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-3">
-          {cart.map(({ product, qty }) => (
-            <div
-              key={product.id}
-              className="flex items-center gap-3 py-3 border-b last:border-0"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>
-                  {product.name}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-2)" }}>
-                  {fmtKES(product.price)} each
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  onClick={() => (qty === 1 ? onRemove(product.id) : onUpdate(product.id, -1))}
-                  className="flex h-7 w-7 items-center justify-center rounded-full border transition-colors active:scale-90"
-                  style={{ borderColor: "var(--border)", color: "var(--text-2)" }}
-                >
-                  {qty === 1 ? <X size={12} /> : <Minus size={12} />}
-                </button>
-                {/* Tap qty to open numpad */}
-                <button
-                  onClick={() => setQtyPick({ product, qty })}
-                  className="flex h-7 min-w-7 items-center justify-center rounded-lg text-sm font-semibold transition-colors"
-                  style={{ color: "var(--text)", background: "var(--surface-2)" }}
-                >
-                  {qty}
-                </button>
-                <button
-                  onClick={() => onUpdate(product.id, 1)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full transition-colors active:scale-90 text-white"
-                  style={{ background: "var(--brand)" }}
-                >
-                  <Plus size={12} />
-                </button>
-              </div>
-
-              <span
-                className="w-16 text-right text-sm font-semibold shrink-0"
-                style={{ color: "var(--text)" }}
+          {cart.map(({ product, qty }) => {
+            const isWeight = product.pricing_mode === "weight";
+            return (
+              <div
+                key={product.id}
+                className="flex items-center gap-3 py-3 border-b last:border-0"
+                style={{ borderColor: "var(--border)" }}
               >
-                {fmtKES(product.price * qty)}
-              </span>
-            </div>
-          ))}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>
+                    {product.name}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-2)" }}>
+                    {isWeight ? `${fmtKES(product.price)}/kg` : `${fmtKES(product.price)} each`}
+                  </p>
+                </div>
+
+                {isWeight ? (
+                  <button
+                    onClick={() => setWeightPick({ product, qty })}
+                    className="flex items-center gap-1 shrink-0 rounded-lg px-2.5 h-7 text-sm font-semibold transition-colors"
+                    style={{ color: "var(--text)", background: "var(--surface-2)" }}
+                  >
+                    {qty.toFixed(3)} kg
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => (qty === 1 ? onRemove(product.id) : onUpdate(product.id, -1))}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border transition-colors active:scale-90"
+                      style={{ borderColor: "var(--border)", color: "var(--text-2)" }}
+                    >
+                      {qty === 1 ? <X size={12} /> : <Minus size={12} />}
+                    </button>
+                    {/* Tap qty to open numpad */}
+                    <button
+                      onClick={() => setQtyPick({ product, qty })}
+                      className="flex h-7 min-w-7 items-center justify-center rounded-lg text-sm font-semibold transition-colors"
+                      style={{ color: "var(--text)", background: "var(--surface-2)" }}
+                    >
+                      {qty}
+                    </button>
+                    <button
+                      onClick={() => onUpdate(product.id, 1)}
+                      className="flex h-7 w-7 items-center justify-center rounded-full transition-colors active:scale-90 text-white"
+                      style={{ background: "var(--brand)" }}
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                )}
+
+                <span
+                  className="w-16 text-right text-sm font-semibold shrink-0"
+                  style={{ color: "var(--text)" }}
+                >
+                  {fmtKES(product.price * qty)}
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Discount section */}
@@ -462,6 +654,19 @@ function CartSheet({
             setQtyPick(null);
           }}
           onClose={() => setQtyPick(null)}
+        />
+      )}
+
+      {/* Weight entry modal */}
+      {weightPick && (
+        <WeightEntryModal
+          product={weightPick.product}
+          current={weightPick.qty}
+          onConfirm={(newQty) => {
+            onSetQty(weightPick.product, newQty);
+            setWeightPick(null);
+          }}
+          onClose={() => setWeightPick(null)}
         />
       )}
     </>
@@ -827,6 +1032,7 @@ export default function SellPage() {
   const [activeCat, setActiveCat] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [weightPick, setWeightPick] = useState<Product | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -846,19 +1052,19 @@ export default function SellPage() {
   }
 
   const cartTotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
-  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+  const cartCount = cart.reduce((s, i) => s + (i.product.pricing_mode === "weight" ? 1 : i.qty), 0);
   const netTotal = cartTotal - discountAmount;
 
   const addToCart = useCallback((product: Product) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.product.id === product.id);
       if (existing) {
-        if (existing.qty >= product.stock) return prev;
+        if (product.track_stock && existing.qty >= product.stock) return prev;
         return prev.map((i) =>
           i.product.id === product.id ? { ...i, qty: i.qty + 1 } : i
         );
       }
-      if (product.stock === 0) return prev;
+      if (product.track_stock && product.stock === 0) return prev;
       return [...prev, { product, qty: 1 }];
     });
   }, []);
@@ -873,16 +1079,25 @@ export default function SellPage() {
 
   const updateCart = useCallback((id: number, delta: number) => {
     setCart((prev) =>
-      prev.map((i) =>
-        i.product.id === id
-          ? { ...i, qty: Math.min(i.product.stock, Math.max(1, i.qty + delta)) }
-          : i
-      )
+      prev.map((i) => {
+        if (i.product.id !== id) return i;
+        const max = i.product.track_stock ? i.product.stock : Infinity;
+        return { ...i, qty: Math.min(max, Math.max(1, i.qty + delta)) };
+      })
     );
   }, []);
 
   const removeFromCart = useCallback((id: number) => {
     setCart((prev) => prev.filter((i) => i.product.id !== id));
+  }, []);
+
+  const setCartQty = useCallback((product: Product, qty: number) => {
+    setCart((prev) => {
+      if (qty <= 0) return prev.filter((i) => i.product.id !== product.id);
+      const existing = prev.find((i) => i.product.id === product.id);
+      if (existing) return prev.map((i) => (i.product.id === product.id ? { ...i, qty } : i));
+      return [...prev, { product, qty }];
+    });
   }, []);
 
   const clearCart = useCallback(() => {
@@ -1053,6 +1268,7 @@ export default function SellPage() {
                 catColor={p.category_id ? (catColorMap[p.category_id] ?? null) : null}
                 onAdd={() => addToCart(p)}
                 onSubtract={() => subtractFromCart(p.id)}
+                onOpenWeight={() => setWeightPick(p)}
               />
             ))}
           </div>
@@ -1093,8 +1309,22 @@ export default function SellPage() {
           total={cartTotal}
           onUpdate={updateCart}
           onRemove={removeFromCart}
+          onSetQty={setCartQty}
           onCharge={handleCharge}
           onClose={() => setCartOpen(false)}
+        />
+      )}
+
+      {/* Weight entry modal (tile-triggered) */}
+      {weightPick && (
+        <WeightEntryModal
+          product={weightPick}
+          current={qtyInCart(weightPick.id)}
+          onConfirm={(newQty) => {
+            setCartQty(weightPick, newQty);
+            setWeightPick(null);
+          }}
+          onClose={() => setWeightPick(null)}
         />
       )}
 

@@ -16,8 +16,11 @@ class Product(SQLModel, table=True):
     name: str = Field(index=True)
     price: float
     buying_price: float = Field(default=0.0)
-    stock: int = Field(default=0)
-    min_stock: int = Field(default=5)
+    stock: float = Field(default=0)
+    min_stock: float = Field(default=5)
+    pricing_mode: str = Field(default="unit")  # "unit" or "weight"
+    unit_label: Optional[str] = Field(default=None)
+    track_stock: bool = Field(default=True)
     barcode: Optional[str] = Field(default=None, index=True)
     category_id: Optional[int] = Field(default=None, foreign_key="category.id")
     active: bool = Field(default=True)

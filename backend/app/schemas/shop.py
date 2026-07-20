@@ -23,6 +23,7 @@ class ShopCreate(SQLModel):
 
 class ShopUpdate(SQLModel):
     name: Optional[str] = None
+    slug: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     active: Optional[bool] = None

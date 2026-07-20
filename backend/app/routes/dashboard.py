@@ -72,6 +72,7 @@ def get_stats(
         select(Product)
         .where(Product.shop_id == shop_id)
         .where(Product.active == True)
+        .where(Product.track_stock == True)
         .where(Product.stock <= Product.min_stock)
     ).all()
 

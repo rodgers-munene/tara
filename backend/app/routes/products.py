@@ -38,7 +38,12 @@ def create_product(
     product = Product(
         name=data.name,
         price=data.price,
+        buying_price=data.buying_price,
         stock=data.stock,
+        min_stock=data.min_stock,
+        pricing_mode=data.pricing_mode,
+        unit_label=data.unit_label,
+        track_stock=data.track_stock,
         barcode=data.barcode,
         category_id=data.category_id,
         shop_id=current_user.get("shop_id"),

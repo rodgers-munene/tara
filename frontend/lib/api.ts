@@ -87,6 +87,9 @@ export interface Product {
   buying_price: number;
   stock: number;
   min_stock: number;
+  pricing_mode: "unit" | "weight";
+  unit_label: string | null;
+  track_stock: boolean;
   barcode: string | null;
   category_id: number | null;
   active: boolean;

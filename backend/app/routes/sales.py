@@ -45,13 +45,13 @@ def create_sale(
             raise HTTPException(status_code=404, detail=f"Product {item_in.product_id} not found")
         if not product.active:
             raise HTTPException(status_code=400, detail=f"Product '{product.name}' is not active")
-        if product.stock < item_in.quantity:
+        if product.track_stock and product.stock < item_in.quantity:
             raise HTTPException(
                 status_code=400,
                 detail=f"Not enough stock for '{product.name}'. Available: {product.stock}"
             )
 
-        subtotal = product.price * item_in.quantity
+        subtotal = round(product.price * item_in.quantity, 2)
         subtotal_total += subtotal
         items_data.append({
             "product": product,
@@ -110,8 +110,9 @@ def create_sale(
             subtotal=entry["subtotal"],
         )
         session.add(sale_item)
-        entry["product"].stock = max(0, entry["product"].stock - entry["quantity"])
-        session.add(entry["product"])
+        if entry["product"].track_stock:
+            entry["product"].stock = max(0, entry["product"].stock - entry["quantity"])
+            session.add(entry["product"])
 
     session.commit()
     session.refresh(sale)

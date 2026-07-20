@@ -1,17 +1,150 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, Users, Zap, CheckCircle, XCircle, Store,
   TrendingUp, Receipt, Calendar, Mail, Phone, Wallet, Smartphone,
-  Award, PackageX, RotateCcw, BarChart3, Lock,
+  Award, PackageX, RotateCcw, BarChart3, Lock, ShoppingCart, Pencil, Check, X as XIcon,
 } from "lucide-react";
 import { useOwnerAuth } from "../../../components/OwnerAuthProvider";
 import {
-  ownerRequest, useOwnerApi, ShopDetail, ShopAnalytics, daysLeft, subscriptionLabel,
+  ownerRequest, useOwnerApi, jumpToSell, ShopDetail, ShopAnalytics, daysLeft, subscriptionLabel,
   UpgradeModal, StaffPanel, BarChart,
 } from "../../shared";
+
+// ── Editable shop ID (slug) ──────────────────────────────────────────────────
+
+function SlugEditor({
+  shop,
+  token,
+  onSaved,
+}: {
+  shop: ShopDetail;
+  token: string;
+  onSaved: (slug: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(shop.slug);
+  const [status, setStatus] = useState<{ checking: boolean; available: boolean | null; reason: string | null }>({
+    checking: false, available: null, reason: null,
+  });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!editing) return;
+    const normalized = value.trim().toLowerCase();
+    if (normalized === shop.slug) {
+      setStatus({ checking: false, available: null, reason: null });
+      return;
+    }
+    setStatus({ checking: true, available: null, reason: null });
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await ownerRequest<{ available: boolean; reason: string | null }>(
+          `/owner/shops/check-slug?slug=${encodeURIComponent(normalized)}&shop_id=${shop.id}`,
+          token,
+        );
+        setStatus({ checking: false, available: res.available, reason: res.reason });
+      } catch (err: unknown) {
+        setStatus({ checking: false, available: false, reason: (err as Error).message ?? "Could not check availability" });
+      }
+    }, 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [value, editing]);
+
+  async function save() {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === shop.slug) { setEditing(false); return; }
+    if (status.available !== true) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      await ownerRequest(`/owner/shops/${shop.id}`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ slug: normalized }),
+      });
+      onSaved(normalized);
+      setEditing(false);
+    } catch (err: unknown) {
+      setSaveError((err as Error).message ?? "Failed to update shop ID");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function cancel() {
+    setValue(shop.slug);
+    setStatus({ checking: false, available: null, reason: null });
+    setSaveError("");
+    setEditing(false);
+  }
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        className="flex items-center gap-1.5 text-xs font-mono mt-0.5 group"
+        style={{ color: "var(--text-3)" }}
+      >
+        <span className="truncate">{shop.slug}</span>
+        <Pencil size={11} className="shrink-0 opacity-60 group-hover:opacity-100" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-1 flex flex-col gap-1">
+      <div className="flex items-center gap-1.5">
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+          onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") cancel(); }}
+          className="rounded-lg border px-2 py-1 text-xs font-mono outline-none"
+          style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)", width: 180 }}
+        />
+        <button
+          onClick={save}
+          disabled={saving || status.checking || status.available !== true}
+          className="flex h-6 w-6 items-center justify-center rounded-lg disabled:opacity-40"
+          style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
+        >
+          {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+        </button>
+        <button
+          onClick={cancel}
+          className="flex h-6 w-6 items-center justify-center rounded-lg"
+          style={{ background: "var(--surface-2)", color: "var(--text-3)" }}
+        >
+          <XIcon size={12} />
+        </button>
+      </div>
+      <p className="text-[11px] font-medium" style={{
+        color: status.checking
+          ? "var(--text-3)"
+          : status.available === true
+            ? "var(--brand-dark)"
+            : status.available === false
+              ? "var(--danger)"
+              : "var(--text-3)",
+      }}>
+        {saveError
+          ? saveError
+          : status.checking
+            ? "Checking availability…"
+            : status.available === true
+              ? "Available"
+              : status.available === false
+                ? (status.reason ?? "Not available")
+                : "3-30 chars: lowercase letters, numbers, hyphens"}
+      </p>
+    </div>
+  );
+}
 
 function StatTile({
   label,
@@ -64,9 +197,23 @@ export default function ShopDetailsPage() {
   const [toggling, setToggling] = useState(false);
   const [showStaff, setShowStaff] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [selling, setSelling] = useState(false);
+  const [sellError, setSellError] = useState("");
 
   function load() {
     return Promise.all([mutateShop(), mutateAnalytics()]);
+  }
+
+  async function handleSell() {
+    if (!token || !shop) return;
+    setSelling(true);
+    setSellError("");
+    try {
+      await jumpToSell(shop.id, token);
+    } catch (err: unknown) {
+      setSellError((err as Error).message ?? "Could not switch to till");
+      setSelling(false);
+    }
   }
 
   async function toggleActive() {
@@ -144,9 +291,13 @@ export default function ShopDetailsPage() {
               <p className="font-bold text-xl leading-tight truncate" style={{ color: "var(--text)" }} title={shop.name}>
                 {shop.name}
               </p>
-              <p className="text-xs font-mono mt-0.5 truncate" style={{ color: "var(--text-3)" }}>
-                {shop.slug}
-              </p>
+              {token && (
+                <SlugEditor
+                  shop={shop}
+                  token={token}
+                  onSaved={(slug) => mutateShop((prev) => (prev ? { ...prev, slug } : prev), { revalidate: false })}
+                />
+              )}
               <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                 <span
                   className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
@@ -209,11 +360,26 @@ export default function ShopDetailsPage() {
             </div>
           </div>
 
+          {sellError && (
+            <p className="text-xs rounded-xl px-3 py-2" style={{ background: "var(--danger-light)", color: "var(--danger)" }}>
+              {sellError}
+            </p>
+          )}
+
           <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => setShowStaff(true)}
-              className="flex items-center gap-2 rounded-xl py-2.5 px-5 text-sm font-semibold text-white"
+              onClick={handleSell}
+              disabled={selling || !shop.active}
+              className="flex items-center gap-2 rounded-xl py-2.5 px-5 text-sm font-semibold text-white disabled:opacity-60"
               style={{ background: "var(--brand)" }}
+            >
+              {selling ? <Loader2 size={14} className="animate-spin" /> : <ShoppingCart size={14} />}
+              Sell
+            </button>
+            <button
+              onClick={() => setShowStaff(true)}
+              className="flex items-center gap-2 rounded-xl py-2.5 px-5 text-sm font-semibold"
+              style={{ background: "var(--surface-2)", color: "var(--text-2)" }}
             >
               <Users size={14} /> Manage staff
             </button>

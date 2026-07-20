@@ -4,7 +4,8 @@ import secrets
 import bcrypt
 import jwt
 from datetime import date, datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import require_owner
@@ -41,6 +42,16 @@ def _unique_slug(base: str, session: Session) -> str:
         slug = f"{base}-{n}"
         n += 1
     return slug
+
+
+SLUG_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$")
+
+
+def _validate_slug(slug: str) -> Optional[str]:
+    """Returns an error message if the slug is invalid, else None."""
+    if not SLUG_PATTERN.match(slug):
+        return "Shop ID must be 3-30 characters: lowercase letters, numbers, and hyphens only (no leading/trailing hyphen)."
+    return None
 
 
 def _subscription_fields(owner: Owner) -> dict:
@@ -236,6 +247,27 @@ def list_shops(
     return result
 
 
+@router.get("/shops/check-slug")
+def check_slug(
+    slug: str = Query(...),
+    shop_id: Optional[int] = Query(default=None),
+    session: Session = Depends(get_session),
+    payload: dict = Depends(require_owner),
+):
+    normalized = slug.strip().lower()
+    error = _validate_slug(normalized)
+    if error:
+        return {"available": False, "reason": error}
+
+    query = select(Shop).where(Shop.slug == normalized)
+    if shop_id is not None:
+        query = query.where(Shop.id != shop_id)
+    clash = session.exec(query).first()
+    if clash:
+        return {"available": False, "reason": "This shop ID is already taken"}
+    return {"available": True, "reason": None}
+
+
 @router.get("/shops/{shop_id}")
 def get_shop(
     shop_id: int,
@@ -365,7 +397,7 @@ def get_shop_analytics(
     )
 
     low_stock = sorted(
-        [p for p in products if p.active and p.stock <= p.min_stock],
+        [p for p in products if p.active and p.track_stock and p.stock <= p.min_stock],
         key=lambda p: p.stock,
     )
 
@@ -462,12 +494,65 @@ def update_shop(
     if not shop or shop.owner_id != owner_id:
         raise HTTPException(status_code=404, detail="Shop not found")
     updates = data.model_dump(exclude_unset=True)
+
+    if "slug" in updates:
+        slug = updates["slug"].strip().lower()
+        error = _validate_slug(slug)
+        if error:
+            raise HTTPException(status_code=400, detail=error)
+        clash = session.exec(
+            select(Shop).where(Shop.slug == slug, Shop.id != shop_id)
+        ).first()
+        if clash:
+            raise HTTPException(status_code=400, detail="This shop ID is already taken")
+        updates["slug"] = slug
+
     for key, value in updates.items():
         setattr(shop, key, value)
     session.add(shop)
     session.commit()
     session.refresh(shop)
     return shop
+
+
+@router.post("/shops/{shop_id}/sell-token")
+def create_sell_token(
+    shop_id: int,
+    session: Session = Depends(get_session),
+    payload: dict = Depends(require_owner),
+):
+    """Lets an owner jump straight into a shop's till, reusing that shop's
+    manager Staff account (created automatically in create_shop) to mint a
+    staff-shaped token identical in shape to what /login/ issues."""
+    owner_id = int(payload["sub"])
+    shop = session.get(Shop, shop_id)
+    if not shop or shop.owner_id != owner_id:
+        raise HTTPException(status_code=404, detail="Shop not found")
+    if not shop.active:
+        raise HTTPException(status_code=400, detail="This shop is not active")
+
+    owner = session.get(Owner, owner_id)
+    manager = session.exec(
+        select(Staff).where(Staff.shop_id == shop_id, Staff.role == "owner", Staff.active == True)
+    ).first()
+    if not manager:
+        random_pin = secrets.token_hex(8)
+        pin_hash = bcrypt.hashpw(random_pin.encode(), bcrypt.gensalt()).decode()
+        manager = Staff(
+            name=owner.name if owner else "Owner",
+            pin_hash=pin_hash,
+            role="owner",
+            shop_id=shop_id,
+        )
+        session.add(manager)
+        session.commit()
+        session.refresh(manager)
+
+    token = jwt.encode(
+        {"sub": str(manager.id), "name": manager.name, "role": manager.role, "shop_id": manager.shop_id},
+        SECRET_KEY, algorithm=ALGORITHM,
+    )
+    return {"access_token": token}
 
 
 

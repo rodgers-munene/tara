@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Loader2, Plus, Store, X, Users, LogOut,
-  CheckCircle, XCircle, TrendingUp, ShoppingBag, Receipt, Zap, MoreVertical,
+  CheckCircle, XCircle, TrendingUp, ShoppingBag, Receipt, Zap, MoreVertical, ShoppingCart,
 } from "lucide-react";
 import { useOwnerAuth } from "../../components/OwnerAuthProvider";
-import { ownerRequest, useOwnerApi, Shop, daysLeft, subscriptionLabel, UpgradeModal, StaffPanel } from "../shared";
+import { ownerRequest, useOwnerApi, jumpToSell, Shop, daysLeft, subscriptionLabel, UpgradeModal, StaffPanel } from "../shared";
 
 interface OwnerStats {
   total_shops: number;
@@ -168,13 +168,17 @@ function ShopCard({
   onToggleActive,
   onManageStaff,
   onUpgrade,
+  onSell,
   toggling,
+  selling,
 }: {
   shop: Shop;
   onToggleActive: (shop: Shop) => void;
   onManageStaff: (shop: Shop) => void;
   onUpgrade: (shop: Shop) => void;
+  onSell: (shop: Shop) => void;
   toggling: boolean;
+  selling: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const subStatus = subscriptionLabel(shop);
@@ -273,11 +277,24 @@ function ShopCard({
         {/* Actions */}
         <div className="flex gap-2">
           <button
-            onClick={() => onManageStaff(shop)}
-            className="flex-1 min-w-0 rounded-xl py-2.5 text-sm font-semibold text-white flex items-center justify-center gap-2"
+            onClick={() => onSell(shop)}
+            disabled={selling || !shop.active}
+            className="flex-1 min-w-0 rounded-xl py-2.5 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
             style={{ background: "var(--brand)" }}
           >
-            <Users size={14} className="shrink-0" /> <span className="truncate">Manage staff</span>
+            {selling ? (
+              <Loader2 size={14} className="animate-spin shrink-0" />
+            ) : (
+              <ShoppingCart size={14} className="shrink-0" />
+            )}
+            <span className="truncate">Sell</span>
+          </button>
+          <button
+            onClick={() => onManageStaff(shop)}
+            className="flex-1 min-w-0 rounded-xl py-2.5 text-sm font-semibold flex items-center justify-center gap-2"
+            style={{ background: "var(--surface-2)", color: "var(--text-2)" }}
+          >
+            <Users size={14} className="shrink-0" /> <span className="truncate">Staff</span>
           </button>
           <button
             onClick={() => onUpgrade(shop)}
@@ -340,6 +357,8 @@ export default function OwnerDashboard() {
   const [staffShop, setStaffShop] = useState<Shop | null>(null);
   const [upgradeShop, setUpgradeShop] = useState<Shop | null>(null);
   const [toggling, setToggling] = useState<number | null>(null);
+  const [selling, setSelling] = useState<number | null>(null);
+  const [sellError, setSellError] = useState("");
   const [verifyBanner, setVerifyBanner] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const greeting = (() => {
@@ -399,12 +418,36 @@ export default function OwnerDashboard() {
     }
   }
 
+  async function handleSell(shop: Shop) {
+    if (!token) return;
+    setSelling(shop.id);
+    setSellError("");
+    try {
+      await jumpToSell(shop.id, token);
+    } catch (err: unknown) {
+      setSellError((err as Error).message ?? "Could not switch to till");
+      setSelling(null);
+    }
+  }
+
   if (!owner) return null;
 
   return (
     <>
       <div className="min-h-svh" style={{ background: "var(--bg)" }}>
       <main className="w-full px-4 py-6 lg:px-10 lg:py-10 flex flex-col gap-6 pb-10">
+
+        {sellError && (
+          <div
+            className="rounded-2xl px-4 py-3 text-sm font-medium flex items-center justify-between gap-3"
+            style={{ background: "var(--danger-light)", color: "var(--danger)" }}
+          >
+            <span>{sellError}</span>
+            <button onClick={() => setSellError("")} style={{ color: "inherit" }}>
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {verifyBanner && (
           <div
@@ -494,7 +537,9 @@ export default function OwnerDashboard() {
                   onToggleActive={toggleActive}
                   onManageStaff={setStaffShop}
                   onUpgrade={setUpgradeShop}
+                  onSell={handleSell}
                   toggling={toggling === shop.id}
+                  selling={selling === shop.id}
                 />
               ))}
             </div>

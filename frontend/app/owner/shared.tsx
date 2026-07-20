@@ -36,6 +36,19 @@ export function invalidateOwnerApi(prefix: string) {
   return globalMutate((key) => typeof key === "string" && key.startsWith(prefix));
 }
 
+// Switches this device into the shop's till as its manager, then hard-navigates
+// to /sell — a full navigation is required because AuthProvider only reads
+// tara_token from localStorage in a mount-time effect.
+export async function jumpToSell(shopId: number, token: string) {
+  const { access_token } = await ownerRequest<{ access_token: string }>(
+    `/owner/shops/${shopId}/sell-token`,
+    token,
+    { method: "POST" },
+  );
+  localStorage.setItem("tara_token", access_token);
+  window.location.href = "/sell";
+}
+
 export interface Shop {
   id: number;
   name: string;

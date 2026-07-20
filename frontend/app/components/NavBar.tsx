@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ShoppingCart, Package, Receipt, Users, LogOut } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Package, Receipt, Users, LogOut, ArrowLeft } from "lucide-react";
 import { useAuth } from "./AuthProvider";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const links = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
@@ -19,6 +19,11 @@ export default function NavBar() {
   const { user, logout } = useAuth();
 
   const [showLogout, setShowLogout] = useState(false);
+  const [hasOwnerSession, setHasOwnerSession] = useState(false);
+
+  useEffect(() => {
+    setHasOwnerSession(!!localStorage.getItem("tara_owner_token"));
+  }, []);
 
   return (
     <>
@@ -63,6 +68,15 @@ export default function NavBar() {
                     <p className="text-xs font-semibold" style={{ color: "var(--text)" }}>{user.name}</p>
                     <p className="text-[11px] capitalize" style={{ color: "var(--text-3)" }}>{user.role}</p>
                   </div>
+                  {hasOwnerSession && (
+                    <a
+                      href="/owner/dashboard"
+                      className="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
+                      style={{ color: "var(--text-2)" }}
+                    >
+                      <ArrowLeft size={14} /> Owner Dashboard
+                    </a>
+                  )}
                   <button
                     onClick={() => { setShowLogout(false); logout(); }}
                     className="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
@@ -144,6 +158,20 @@ export default function NavBar() {
             );
           })}
         </nav>
+
+        {/* Back to owner dashboard */}
+        {hasOwnerSession && (
+          <div className="px-3 pb-1 flex-shrink-0">
+            <a
+              href="/owner/dashboard"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--sidebar-hover)]"
+              style={{ color: "var(--sidebar-text-dim)" }}
+            >
+              <ArrowLeft size={18} strokeWidth={1.8} />
+              Owner Dashboard
+            </a>
+          </div>
+        )}
 
         {/* Logged-in user + logout */}
         {user && (

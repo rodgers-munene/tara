@@ -26,7 +26,7 @@ class SaleItem(SQLModel, table=True):
     sale_id: int = Field(foreign_key="sale.id")
     product_id: Optional[int] = Field(default=None, foreign_key="product.id")
     product_name: str
-    quantity: int
+    quantity: float
     unit_price: float
     subtotal: float
     sale: Optional[Sale] = Relationship(back_populates="items")

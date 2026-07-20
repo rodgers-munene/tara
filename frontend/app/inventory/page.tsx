@@ -41,10 +41,15 @@ function ProductFormContent({
   const [categoryId, setCategoryId] = useState<string>(
     initial?.category_id ? String(initial.category_id) : ""
   );
+  const [pricingMode, setPricingMode] = useState<"unit" | "weight">(initial?.pricing_mode ?? "unit");
+  const [unitLabel, setUnitLabel] = useState(initial?.unit_label ?? "");
+  const [trackStock, setTrackStock] = useState(initial ? initial.track_stock : false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const isEdit = !!initial;
+  const isWeight = pricingMode === "weight";
+  const showStockFields = !isWeight || trackStock;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,8 +61,11 @@ function ProductFormContent({
         name: name.trim(),
         price: parseFloat(price),
         buying_price: buyingPrice ? parseFloat(buyingPrice) : 0,
-        stock: parseInt(stock) || 0,
-        min_stock: parseInt(minStock) || 0,
+        stock: showStockFields ? (parseFloat(stock) || 0) : 0,
+        min_stock: showStockFields ? (parseFloat(minStock) || 0) : 0,
+        pricing_mode: pricingMode,
+        unit_label: !isWeight && unitLabel.trim() ? unitLabel.trim() : null,
+        track_stock: isWeight ? trackStock : true,
         barcode: barcode.trim() || null,
         category_id: categoryId ? parseInt(categoryId) : null,
       };
@@ -119,10 +127,35 @@ function ProductFormContent({
           />
         </div>
 
+        <div>
+          <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+            How is it sold?
+          </label>
+          <div
+            className="flex rounded-xl p-1 gap-1"
+            style={{ background: "var(--surface-2)", border: "1.5px solid var(--border)" }}
+          >
+            {(["unit", "weight"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setPricingMode(mode)}
+                className="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors"
+                style={{
+                  background: pricingMode === mode ? "var(--brand)" : "transparent",
+                  color: pricingMode === mode ? "#fff" : "var(--text-2)",
+                }}
+              >
+                {mode === "unit" ? "Unit" : "Weight (per kg)"}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
-              Selling price (KES) *
+              {isWeight ? "Price per kg (KES) *" : "Selling price (KES) *"}
             </label>
             <input
               type="number"
@@ -177,40 +210,83 @@ function ProductFormContent({
           })()
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        {!isWeight && (
           <div>
             <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
-              Stock (units)
+              Unit label{" "}
+              <span style={{ color: "var(--text-3)", fontWeight: 400 }}>(optional)</span>
             </label>
             <input
-              type="number"
-              inputMode="numeric"
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
-              placeholder="0"
+              type="text"
+              value={unitLabel}
+              onChange={(e) => setUnitLabel(e.target.value)}
+              placeholder="e.g. bundle of 3, piece"
               className="w-full rounded-xl border px-4 text-sm outline-none transition-colors"
               style={inputStyle}
               onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
               onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
-              Low stock alert at
-            </label>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={minStock}
-              onChange={(e) => setMinStock(e.target.value)}
-              placeholder="5"
-              className="w-full rounded-xl border px-4 text-sm outline-none transition-colors"
-              style={inputStyle}
-              onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
-              onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-            />
+        )}
+
+        {isWeight && (
+          <button
+            type="button"
+            onClick={() => setTrackStock((v) => !v)}
+            className="flex items-center justify-between rounded-xl px-4 py-3 border"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+          >
+            <span className="text-sm font-medium text-left" style={{ color: "var(--text)" }}>
+              Track stock for this product
+            </span>
+            <span
+              className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+              style={{ background: trackStock ? "var(--brand)" : "var(--border-strong)" }}
+            >
+              <span
+                className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                style={{ transform: trackStock ? "translateX(22px)" : "translateX(4px)" }}
+              />
+            </span>
+          </button>
+        )}
+
+        {showStockFields && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+                Stock {isWeight ? "(kg)" : "(units)"}
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+                placeholder="0"
+                className="w-full rounded-xl border px-4 text-sm outline-none transition-colors"
+                style={inputStyle}
+                onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+                Low stock alert at
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={minStock}
+                onChange={(e) => setMinStock(e.target.value)}
+                placeholder="5"
+                className="w-full rounded-xl border px-4 text-sm outline-none transition-colors"
+                style={inputStyle}
+                onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
@@ -401,7 +477,7 @@ export default function InventoryPage() {
   const catMap: Record<number, Category> = {};
   for (const c of categories) catMap[c.id] = c;
 
-  const lowStockCount = products.filter((p) => p.active && p.stock <= p.min_stock).length;
+  const lowStockCount = products.filter((p) => p.active && p.track_stock && p.stock <= p.min_stock).length;
 
   const formProps = {
     initial: editing ?? undefined,
@@ -544,8 +620,8 @@ export default function InventoryPage() {
             <div style={{ background: "var(--surface)" }}>
               {filtered.map((p) => {
                 const cat = p.category_id ? catMap[p.category_id] : null;
-                const isLow = p.active && p.stock > 0 && p.stock <= p.min_stock;
-                const isOut = p.active && p.stock === 0;
+                const isLow = p.active && p.track_stock && p.stock > 0 && p.stock <= p.min_stock;
+                const isOut = p.active && p.track_stock && p.stock === 0;
                 return (
                   <div
                     key={p.id}
@@ -578,19 +654,34 @@ export default function InventoryPage() {
                             {cat.name}
                           </span>
                         )}
-                        <span
-                          className="flex items-center gap-1 text-xs"
-                          style={{ color: isOut ? "var(--danger)" : isLow ? "var(--warning)" : "var(--text-3)" }}
-                        >
-                          {isOut && <AlertTriangle size={11} />}
-                          {isOut ? "Out of stock" : isLow ? `${p.stock} left (low)` : `${p.stock} in stock`}
-                        </span>
+                        {p.pricing_mode === "unit" && p.unit_label && (
+                          <span className="text-xs" style={{ color: "var(--text-3)" }}>
+                            {p.unit_label}
+                          </span>
+                        )}
+                        {p.track_stock ? (
+                          <span
+                            className="flex items-center gap-1 text-xs"
+                            style={{ color: isOut ? "var(--danger)" : isLow ? "var(--warning)" : "var(--text-3)" }}
+                          >
+                            {isOut && <AlertTriangle size={11} />}
+                            {isOut
+                              ? "Out of stock"
+                              : isLow
+                              ? `${p.stock} left (low)`
+                              : `${p.stock}${p.pricing_mode === "weight" ? " kg" : ""} in stock`}
+                          </span>
+                        ) : (
+                          <span className="text-xs" style={{ color: "var(--text-3)" }}>
+                            Stock not tracked
+                          </span>
+                        )}
                       </div>
                     </div>
 
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold" style={{ color: "var(--text)" }}>
-                        {fmtKES(p.price)}
+                        {fmtKES(p.price)}{p.pricing_mode === "weight" ? "/kg" : ""}
                       </p>
                       {p.buying_price > 0 && (() => {
                         const margin = Math.round(((p.price - p.buying_price) / p.price) * 100);

@@ -65,6 +65,12 @@ def run_migrations():
                 "ALTER TABLE day_close ADD COLUMN IF NOT EXISTS notes VARCHAR",
                 "ALTER TABLE day_close ADD COLUMN IF NOT EXISTS closed_by VARCHAR",
                 "ALTER TABLE staff ADD COLUMN IF NOT EXISTS role VARCHAR NOT NULL DEFAULT 'cashier'",
+                "ALTER TABLE product ADD COLUMN IF NOT EXISTS pricing_mode VARCHAR NOT NULL DEFAULT 'unit'",
+                "ALTER TABLE product ADD COLUMN IF NOT EXISTS unit_label VARCHAR",
+                "ALTER TABLE product ADD COLUMN IF NOT EXISTS track_stock BOOLEAN NOT NULL DEFAULT TRUE",
+                "ALTER TABLE product ALTER COLUMN stock TYPE DOUBLE PRECISION",
+                "ALTER TABLE product ALTER COLUMN min_stock TYPE DOUBLE PRECISION",
+                "ALTER TABLE saleitem ALTER COLUMN quantity TYPE DOUBLE PRECISION",
             ]
             for stmt in column_migrations:
                 conn.execute(text(stmt))
