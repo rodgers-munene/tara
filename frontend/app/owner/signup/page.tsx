@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { api } from "../../../lib/api";
+import AuthBackdrop from "../../components/AuthBackdrop";
 
 function SignupForm() {
   const searchParams = useSearchParams();
@@ -52,39 +53,44 @@ function SignupForm() {
 
   if (done) {
     return (
-      <div
-        className="flex min-h-svh flex-col items-center justify-center px-6 py-12 text-center"
-        style={{ background: "var(--bg)" }}
-      >
+      <div className="relative flex min-h-svh flex-col items-center justify-center px-6 py-12">
+        <AuthBackdrop variant="owner" />
         <div
-          className="flex h-14 w-14 items-center justify-center rounded-2xl mb-6"
-          style={{ background: "var(--brand-light)" }}
+          className="relative z-10 w-full max-w-xs rounded-3xl p-7 flex flex-col items-center text-center"
+          style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1.5px solid var(--border)" }}
         >
-          <CheckCircle2 size={26} style={{ color: "var(--brand)" }} />
+          <div
+            className="flex h-14 w-14 items-center justify-center rounded-2xl mb-6"
+            style={{ background: "var(--brand-light)" }}
+          >
+            <CheckCircle2 size={26} style={{ color: "var(--brand)" }} />
+          </div>
+          <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>
+            Check your email
+          </h1>
+          <p className="text-sm max-w-xs" style={{ color: "var(--text-2)" }}>
+            We&apos;ve sent a verification link to {form.email.trim()}. Click it to verify your
+            account before signing in.
+          </p>
         </div>
-        <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>
-          Check your email
-        </h1>
-        <p className="text-sm max-w-xs" style={{ color: "var(--text-2)" }}>
-          We&apos;ve sent a verification link to {form.email.trim()}. Click it to verify your
-          account before signing in.
-        </p>
       </div>
     );
   }
 
   const inputStyle = {
     borderColor: "var(--border)",
-    background: "var(--surface)",
+    background: "var(--surface-2)",
     color: "var(--text)",
     height: 52,
   };
 
   return (
-    <div
-      className="flex min-h-svh flex-col items-center justify-center px-6 py-12"
-      style={{ background: "var(--bg)" }}
-    >
+    <div className="relative flex min-h-svh flex-col items-center justify-center px-6 py-12">
+      <AuthBackdrop variant="owner" />
+      <div
+        className="relative z-10 w-full max-w-xs rounded-3xl p-7 flex flex-col items-center"
+        style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1.5px solid var(--border)" }}
+      >
       <div
         className="flex h-14 w-14 items-center justify-center rounded-2xl text-white text-2xl font-bold mb-6 shadow-md"
         style={{ background: "var(--brand)" }}
@@ -98,7 +104,7 @@ function SignupForm() {
         Manage all your shops in one place
       </p>
 
-      <form onSubmit={handleSubmit} className="w-full max-w-xs flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
         <div>
           <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
             Your name
@@ -212,6 +218,7 @@ function SignupForm() {
           Sign in
         </a>
       </p>
+      </div>
     </div>
   );
 }

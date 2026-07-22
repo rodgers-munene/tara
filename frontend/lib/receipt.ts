@@ -8,7 +8,12 @@ export function buildReceiptText(sale: Sale, shop: ShopBrief | null): string {
   const items = sale.items
     .map((i) => `${i.product_name} ×${i.quantity}  ${fmtKES(i.subtotal)}`)
     .join("\n");
-  const method = sale.payment_method === "mpesa" ? "M-Pesa" : "Cash";
+  const method =
+    sale.payment_method === "split"
+      ? `Cash ${fmtKES(sale.cash_amount ?? 0)} + M-Pesa ${fmtKES(sale.mpesa_amount ?? 0)}`
+      : sale.payment_method === "mpesa"
+      ? "M-Pesa"
+      : "Cash";
   const changeNote = sale.change_given > 0 ? `\nChange: ${fmtKES(sale.change_given)}` : "";
   const refNote = sale.mpesa_ref ? `\nM-Pesa ref: ${sale.mpesa_ref}` : "";
   const discNote = sale.discount > 0 ? `\nDiscount: -${fmtKES(sale.discount)}` : "";

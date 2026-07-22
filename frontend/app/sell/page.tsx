@@ -17,7 +17,16 @@ interface CartItem {
   qty: number;
 }
 
-type ModalStep = "method" | "cash" | "mpesa";
+type ModalStep = "method" | "cash" | "mpesa" | "split";
+
+interface PaymentResult {
+  method: "cash" | "mpesa" | "split";
+  amountPaid: number;
+  mpesaRef?: string;
+  mpesaPhone?: string;
+  cashAmount?: number;
+  mpesaAmount?: number;
+}
 
 // ── Skeleton tile ─────────────────────────────────────────────────────────────
 function SkeletonTile() {
@@ -683,17 +692,18 @@ function PaymentModal({
   total: number;
   submitting: boolean;
   onClose: () => void;
-  onComplete: (
-    method: "cash" | "mpesa",
-    amountPaid: number,
-    mpesaRef?: string,
-    mpesaPhone?: string
-  ) => void;
+  onComplete: (result: PaymentResult) => void;
 }) {
   const [step, setStep] = useState<ModalStep>("method");
   const [amountInput, setAmountInput] = useState("");
   const amountNum = parseFloat(amountInput) || 0;
   const change = amountNum - total;
+  const [splitCashInput, setSplitCashInput] = useState("");
+  const [splitMpesaInput, setSplitMpesaInput] = useState("");
+  const splitCash = Math.max(0, parseFloat(splitCashInput) || 0);
+  const splitMpesa = Math.max(0, parseFloat(splitMpesaInput) || 0);
+  const splitPaid = splitCash + splitMpesa;
+  const splitRemaining = total - splitPaid;
 
   if (step === "method") {
     return (
@@ -733,6 +743,19 @@ function PaymentModal({
               <div>
                 <p className="font-semibold" style={{ color: "var(--text)" }}>M-Pesa</p>
                 <p className="text-xs" style={{ color: "var(--text-3)" }}>Enter amount received</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setStep("split")}
+              className="flex items-center gap-4 w-full p-4 rounded-xl border-2 text-left transition-all active:scale-98"
+              style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--brand)")}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+            >
+              <span className="text-2xl">➗</span>
+              <div>
+                <p className="font-semibold" style={{ color: "var(--text)" }}>Split payment</p>
+                <p className="text-xs" style={{ color: "var(--text-3)" }}>Part cash, part M-Pesa</p>
               </div>
             </button>
           </div>
@@ -786,7 +809,7 @@ function PaymentModal({
             </div>
           )}
           <button
-            onClick={() => onComplete("cash", amountNum)}
+            onClick={() => onComplete({ method: "cash", amountPaid: amountNum })}
             disabled={amountNum < total || submitting}
             className="w-full rounded-xl font-semibold text-base text-white transition-all active:scale-98 disabled:opacity-40"
             style={{ background: "var(--brand)", height: 52 }}
@@ -840,10 +863,84 @@ function PaymentModal({
             </div>
           )}
           <button
-            onClick={() => onComplete("mpesa", amountNum)}
+            onClick={() => onComplete({ method: "mpesa", amountPaid: amountNum })}
             disabled={amountNum < total || submitting}
             className="w-full rounded-xl font-semibold text-base text-white transition-all active:scale-98 disabled:opacity-40"
             style={{ background: "var(--mpesa)", height: 52 }}
+          >
+            Complete Sale
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "split") {
+    const canComplete = splitCash > 0 && splitMpesa > 0 && splitPaid >= total;
+    return (
+      <div className="modal">
+        <div className="modal-content">
+          <button onClick={() => setStep("method")} className="flex items-center gap-1.5 text-sm font-medium mb-5" style={{ color: "var(--brand)" }}>
+            ← Back
+          </button>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-3)" }}>
+            Split payment
+          </p>
+          <p className="text-2xl font-bold mb-5" style={{ color: "var(--text)" }}>
+            {fmtKES(total)}
+          </p>
+          <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+            Cash amount (KES)
+          </label>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={splitCashInput}
+            onChange={(e) => setSplitCashInput(e.target.value)}
+            placeholder="0"
+            autoFocus
+            className="w-full rounded-xl border px-4 text-lg font-semibold outline-none transition-colors mb-4"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)", height: 52 }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+          />
+          <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+            M-Pesa amount (KES)
+          </label>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={splitMpesaInput}
+            onChange={(e) => setSplitMpesaInput(e.target.value)}
+            placeholder="0"
+            className="w-full rounded-xl border px-4 text-lg font-semibold outline-none transition-colors mb-4"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)", height: 52 }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--mpesa)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+          />
+          {(splitCashInput || splitMpesaInput) && (
+            <div
+              className="flex items-center justify-between rounded-xl px-4 py-3 mb-5"
+              style={{ background: splitRemaining <= 0 ? "var(--brand-light)" : "var(--danger-light)" }}
+            >
+              <span className="text-sm font-medium" style={{ color: splitRemaining <= 0 ? "var(--brand-dark)" : "var(--danger)" }}>
+                {splitRemaining <= 0 ? "Change" : "Remaining"}
+              </span>
+              <span className="font-bold" style={{ color: splitRemaining <= 0 ? "var(--brand-dark)" : "var(--danger)" }}>
+                {fmtKES(Math.abs(splitRemaining))}
+              </span>
+            </div>
+          )}
+          <button
+            onClick={() => onComplete({
+              method: "split",
+              amountPaid: splitPaid,
+              cashAmount: splitCash,
+              mpesaAmount: splitMpesa,
+            })}
+            disabled={!canComplete || submitting}
+            className="w-full rounded-xl font-semibold text-base text-white transition-all active:scale-98 disabled:opacity-40"
+            style={{ background: "var(--brand)", height: 52 }}
           >
             Complete Sale
           </button>
@@ -864,6 +961,7 @@ function ReceiptPreview({
 }) {
   const { shop } = useAuth();
   const isMpesa = sale.payment_method === "mpesa";
+  const isSplit = sale.payment_method === "split";
   const dateStr = new Date(sale.created_at).toLocaleString("en-KE", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -932,20 +1030,42 @@ function ReceiptPreview({
             <span className="text-sm font-medium" style={{ color: "var(--text-2)" }}>Total</span>
             <span className="text-base font-bold" style={{ color: "var(--text)" }}>{fmtKES(sale.total)}</span>
           </div>
-          <div className="flex justify-between mb-2">
-            <span className="text-sm" style={{ color: "var(--text-2)" }}>Payment</span>
-            <span
-              className="text-sm font-semibold"
-              style={{ color: isMpesa ? "var(--mpesa)" : "var(--text)" }}
-            >
-              {isMpesa ? "M-Pesa" : "Cash"}
-              {sale.mpesa_ref && (
-                <span className="font-mono ml-1.5" style={{ color: "var(--text-3)", fontWeight: 400 }}>
-                  {sale.mpesa_ref}
+          {isSplit ? (
+            <>
+              <div className="flex justify-between mb-2">
+                <span className="text-sm" style={{ color: "var(--text-2)" }}>Cash</span>
+                <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                  {fmtKES(sale.cash_amount ?? 0)}
                 </span>
-              )}
-            </span>
-          </div>
+              </div>
+              <div className="flex justify-between mb-2">
+                <span className="text-sm" style={{ color: "var(--text-2)" }}>M-Pesa</span>
+                <span className="text-sm font-semibold" style={{ color: "var(--mpesa)" }}>
+                  {fmtKES(sale.mpesa_amount ?? 0)}
+                  {sale.mpesa_ref && (
+                    <span className="font-mono ml-1.5" style={{ color: "var(--text-3)", fontWeight: 400 }}>
+                      {sale.mpesa_ref}
+                    </span>
+                  )}
+                </span>
+              </div>
+            </>
+          ) : (
+            <div className="flex justify-between mb-2">
+              <span className="text-sm" style={{ color: "var(--text-2)" }}>Payment</span>
+              <span
+                className="text-sm font-semibold"
+                style={{ color: isMpesa ? "var(--mpesa)" : "var(--text)" }}
+              >
+                {isMpesa ? "M-Pesa" : "Cash"}
+                {sale.mpesa_ref && (
+                  <span className="font-mono ml-1.5" style={{ color: "var(--text-3)", fontWeight: 400 }}>
+                    {sale.mpesa_ref}
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
           {sale.change_given > 0 && (
             <div className="flex justify-between">
               <span className="text-sm" style={{ color: "var(--text-2)" }}>Change</span>
@@ -1146,19 +1266,16 @@ export default function SellPage() {
     }
   }, []);
 
-  const handlePaymentComplete = useCallback(async (
-    method: "cash" | "mpesa",
-    amountPaid: number,
-    mpesaRef?: string,
-    mpesaPhone?: string
-  ) => {
+  const handlePaymentComplete = useCallback(async (result: PaymentResult) => {
     const payload: SaleCreate = {
       items: cart.map((i) => ({ product_id: i.product.id, quantity: i.qty })),
-      payment_method: method,
-      amount_paid: amountPaid,
+      payment_method: result.method,
+      amount_paid: result.amountPaid,
       discount: discountAmount,
-      mpesa_ref: mpesaRef,
-      mpesa_phone: mpesaPhone,
+      mpesa_ref: result.mpesaRef,
+      mpesa_phone: result.mpesaPhone,
+      cash_amount: result.cashAmount,
+      mpesa_amount: result.mpesaAmount,
     };
 
     if (!isOnline) {

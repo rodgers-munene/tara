@@ -6,7 +6,7 @@ from app.schemas.owner import (
     SuperAdminSetup, SuperAdminLogin,
 )
 from app.schemas.staff import StaffRead, StaffCreate, StaffPinReset, LoginRequest, LoginResponse
-from app.schemas.catalog import CategoryRead, CategoryCreate, ProductRead, ProductCreate, ProductUpdate
+from app.schemas.catalog import CategoryRead, CategoryCreate, ProductRead, ProductCreate, ProductUpdate, StockAdjust
 from app.schemas.sales import (
     SaleItemCreate, SaleItemRead, SaleCreate, SaleRead,
     SaleReturnCreate, SaleReturnRead,
@@ -22,7 +22,7 @@ __all__ = [
     "VerifyEmailRequest", "ResendVerificationRequest",
     "SuperAdminSetup", "SuperAdminLogin",
     "StaffRead", "StaffCreate", "StaffPinReset", "LoginRequest", "LoginResponse",
-    "CategoryRead", "CategoryCreate", "ProductRead", "ProductCreate", "ProductUpdate",
+    "CategoryRead", "CategoryCreate", "ProductRead", "ProductCreate", "ProductUpdate", "StockAdjust",
     "SaleItemCreate", "SaleItemRead", "SaleCreate", "SaleRead",
     "SaleReturnCreate", "SaleReturnRead",
     "CustomerCreate", "CustomerUpdate", "CreditEntryRead", "CreditEntryCreate",

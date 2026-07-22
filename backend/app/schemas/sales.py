@@ -20,10 +20,12 @@ class SaleItemRead(SQLModel):
 class SaleCreate(SQLModel):
     items: List[SaleItemCreate]
     payment_method: str
-    amount_paid: float
+    amount_paid: float = 0.0
     discount: float = 0.0
     mpesa_ref: Optional[str] = None
     mpesa_phone: Optional[str] = None
+    cash_amount: Optional[float] = None
+    mpesa_amount: Optional[float] = None
 
 
 class SaleRead(SQLModel):
@@ -36,6 +38,8 @@ class SaleRead(SQLModel):
     change_given: float
     mpesa_ref: Optional[str] = None
     mpesa_phone: Optional[str] = None
+    cash_amount: Optional[float] = None
+    mpesa_amount: Optional[float] = None
     cashier_name: Optional[str] = None
     is_returned: bool = False
     created_at: datetime

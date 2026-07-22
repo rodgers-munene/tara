@@ -71,6 +71,8 @@ def run_migrations():
                 "ALTER TABLE product ALTER COLUMN stock TYPE DOUBLE PRECISION",
                 "ALTER TABLE product ALTER COLUMN min_stock TYPE DOUBLE PRECISION",
                 "ALTER TABLE saleitem ALTER COLUMN quantity TYPE DOUBLE PRECISION",
+                "ALTER TABLE sale ADD COLUMN IF NOT EXISTS cash_amount DOUBLE PRECISION",
+                "ALTER TABLE sale ADD COLUMN IF NOT EXISTS mpesa_amount DOUBLE PRECISION",
             ]
             for stmt in column_migrations:
                 conn.execute(text(stmt))

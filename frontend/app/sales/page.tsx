@@ -200,6 +200,7 @@ function SaleRow({
   const [sale, setSale] = useState(initialSale);
   const [showReturnSheet, setShowReturnSheet] = useState(false);
   const isMpesa = sale.payment_method === "mpesa";
+  const isSplit = sale.payment_method === "split";
 
   return (
     <>
@@ -221,6 +222,8 @@ function SaleRow({
           >
             {sale.is_returned ? (
               <RotateCcw size={16} />
+            ) : isSplit ? (
+              <span className="text-sm">➗</span>
             ) : (
               <img
                 src={isMpesa ? "/mpesa.png" : "/cash.png"}
@@ -303,7 +306,11 @@ function SaleRow({
                 style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
               >
                 <div className="text-xs" style={{ color: "var(--text-2)" }}>
-                  <span className="font-medium">{isMpesa ? "M-Pesa" : "Cash"}</span>
+                  <span className="font-medium">
+                    {isSplit
+                      ? `Cash ${fmtKES(sale.cash_amount ?? 0)} + M-Pesa ${fmtKES(sale.mpesa_amount ?? 0)}`
+                      : isMpesa ? "M-Pesa" : "Cash"}
+                  </span>
                   {sale.mpesa_ref && (
                     <span className="ml-2 font-mono" style={{ color: "var(--text-3)" }}>
                       {sale.mpesa_ref}
@@ -385,7 +392,7 @@ function SaleRow({
 export default function SalesPage() {
   const { data: sales = [], isLoading: loading } = useApi<Sale[]>("/sales/");
   const [search, setSearch] = useState("");
-  const [filterMethod, setFilterMethod] = useState<"all" | "cash" | "mpesa">("all");
+  const [filterMethod, setFilterMethod] = useState<"all" | "cash" | "mpesa" | "split">("all");
 
   const filtered = sales.filter((s) => {
     if (filterMethod !== "all" && s.payment_method !== filterMethod) return false;
@@ -439,7 +446,7 @@ export default function SalesPage() {
         </div>
 
         <div className="flex gap-2">
-          {(["all", "cash", "mpesa"] as const).map((m) => (
+          {(["all", "cash", "mpesa", "split"] as const).map((m) => (
             <button
               key={m}
               onClick={() => setFilterMethod(m)}
@@ -449,14 +456,14 @@ export default function SalesPage() {
                 color: filterMethod === m ? "#fff" : "var(--text-2)",
               }}
             >
-              {m !== "all" && (
+              {m !== "all" && m !== "split" && (
                 <img
                   src={m === "cash" ? "/cash.png" : "/mpesa.png"}
                   alt=""
                   className="h-3.5 w-3.5 object-contain"
                 />
               )}
-              {m === "all" ? "All" : m === "cash" ? "Cash" : "M-Pesa"}
+              {m === "all" ? "All" : m === "cash" ? "Cash" : m === "mpesa" ? "M-Pesa" : "Split"}
             </button>
           ))}
         </div>

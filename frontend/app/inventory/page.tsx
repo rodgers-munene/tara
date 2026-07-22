@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, X, Package, Loader2, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Search, X, Package, PackagePlus, Loader2, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import NavBar from "../components/NavBar";
 import { useAuth } from "../components/AuthProvider";
 import { api, useApi, invalidateApi, fmtKES, type Category, type Product } from "../../lib/api";
@@ -365,6 +365,95 @@ function ProductFormSheet(props: React.ComponentProps<typeof ProductFormContent>
   );
 }
 
+// ── Stock adjust sheet ────────────────────────────────────────────────────────
+function StockAdjustSheet({
+  product,
+  onSave,
+  onClose,
+}: {
+  product: Product;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const [amount, setAmount] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const unit = product.pricing_mode === "weight" ? " kg" : "";
+  const delta = parseFloat(amount) || 0;
+  const newStock = Math.max(0, product.stock + delta);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!amount || delta === 0) return;
+    setSaving(true);
+    setError("");
+    try {
+      await api.post(`/products/${product.id}/adjust-stock`, { delta });
+      onSave();
+    } catch (err: unknown) {
+      setError((err as Error).message ?? "Failed to update stock.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="sheet-backdrop" onClick={onClose} />
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl px-5 pb-10 pt-5"
+        style={{ background: "var(--surface)" }}
+      >
+        <p className="font-semibold text-base mb-1 truncate" style={{ color: "var(--text)" }}>
+          Adjust stock — {product.name}
+        </p>
+        <p className="text-xs mb-4" style={{ color: "var(--text-3)" }}>
+          Current stock: {product.stock}{unit}
+        </p>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <input
+            type="number"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="e.g. 20 (use -5 to remove)"
+            autoFocus
+            className="w-full rounded-xl border px-4 text-lg font-semibold outline-none transition-colors text-center"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)", height: 52 }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+          />
+          {amount && (
+            <p className="text-sm text-center" style={{ color: "var(--text-2)" }}>
+              New stock:{" "}
+              <span className="font-bold" style={{ color: "var(--text)" }}>
+                {newStock}{unit}
+              </span>
+            </p>
+          )}
+          {error && (
+            <p className="text-sm rounded-xl px-4 py-3" style={{ background: "var(--danger-light)", color: "var(--danger)" }}>
+              {error}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={saving || !amount || delta === 0}
+            className="w-full rounded-xl font-semibold text-sm text-white disabled:opacity-50 flex items-center justify-center gap-1.5"
+            style={{ background: "var(--brand)", height: 48 }}
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : null}
+            Update stock
+          </button>
+        </form>
+        <button onClick={onClose} className="mt-3 w-full py-2 text-sm" style={{ color: "var(--text-3)" }}>
+          Cancel
+        </button>
+      </div>
+    </>
+  );
+}
+
 // ── Category form ─────────────────────────────────────────────────────────────
 function CategoryForm({ onSave, onClose }: { onSave: () => void; onClose: () => void }) {
   const [name, setName] = useState("");
@@ -455,6 +544,7 @@ export default function InventoryPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [showAddCat, setShowAddCat] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+  const [adjustingStock, setAdjustingStock] = useState<Product | null>(null);
 
   const formOpen = showAdd || !!editing;
 
@@ -695,6 +785,18 @@ export default function InventoryPage() {
 
                     {canEdit && (
                       <div className="flex items-center gap-1 shrink-0">
+                        {p.track_stock && (
+                          <button
+                            onClick={() => setAdjustingStock(p)}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
+                            style={{ color: "var(--text-3)" }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--brand)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-3)")}
+                            title="Adjust stock"
+                          >
+                            <PackagePlus size={15} />
+                          </button>
+                        )}
                         <button
                           onClick={() => setEditing(p)}
                           className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
@@ -738,6 +840,14 @@ export default function InventoryPage() {
         <div className="lg:hidden">
           <ProductFormSheet {...formProps} />
         </div>
+      )}
+
+      {adjustingStock && (
+        <StockAdjustSheet
+          product={adjustingStock}
+          onSave={() => { setAdjustingStock(null); reload(); }}
+          onClose={() => setAdjustingStock(null)}
+        />
       )}
 
       {showAddCat && (

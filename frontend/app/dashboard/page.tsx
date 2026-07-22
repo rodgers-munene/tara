@@ -320,7 +320,9 @@ export default function DashboardPage() {
                       className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
                       style={{ background: t.payment_method === "mpesa" ? "var(--mpesa-light)" : "var(--brand-light)" }}
                     >
-                      {t.payment_method === "mpesa" ? (
+                      {t.payment_method === "split" ? (
+                        <span className="text-xs">➗</span>
+                      ) : t.payment_method === "mpesa" ? (
                         <Smartphone size={14} style={{ color: "var(--mpesa)" }} />
                       ) : (
                         <Banknote size={14} style={{ color: "var(--brand-dark)" }} />

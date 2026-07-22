@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import get_current_user, require_shop_owner_role
 from app.models import Product
-from app.schemas import ProductCreate, ProductRead, ProductUpdate
+from app.schemas import ProductCreate, ProductRead, ProductUpdate, StockAdjust
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -79,6 +79,23 @@ def update_product(
     updates = data.model_dump(exclude_unset=True)
     for key, value in updates.items():
         setattr(product, key, value)
+    session.add(product)
+    session.commit()
+    session.refresh(product)
+    return product
+
+
+@router.post("/{product_id}/adjust-stock", response_model=ProductRead)
+def adjust_stock(
+    product_id: int,
+    data: StockAdjust,
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(require_shop_owner_role),
+):
+    product = session.get(Product, product_id)
+    if not product or product.shop_id != current_user.get("shop_id"):
+        raise HTTPException(status_code=404, detail="Product not found")
+    product.stock = max(0, product.stock + data.delta)
     session.add(product)
     session.commit()
     session.refresh(product)

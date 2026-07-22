@@ -8,11 +8,13 @@ class Sale(SQLModel, table=True):
     receipt_number: str = Field(unique=True, index=True)
     total: float
     discount: float = Field(default=0.0)
-    payment_method: str  # "cash" or "mpesa"
+    payment_method: str  # "cash", "mpesa", or "split"
     amount_paid: float
     change_given: float = Field(default=0.0)
     mpesa_ref: Optional[str] = Field(default=None)
     mpesa_phone: Optional[str] = Field(default=None)
+    cash_amount: Optional[float] = Field(default=None)  # set only when payment_method == "split"
+    mpesa_amount: Optional[float] = Field(default=None)  # set only when payment_method == "split"
     cashier_id: Optional[int] = Field(default=None, foreign_key="staff.id")
     cashier_name: Optional[str] = Field(default=None)
     is_returned: bool = Field(default=False)

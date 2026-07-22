@@ -41,6 +41,10 @@ class ProductCreate(SQLModel):
     category_id: Optional[int] = None
 
 
+class StockAdjust(SQLModel):
+    delta: float  # positive to add stock, negative to remove
+
+
 class ProductUpdate(SQLModel):
     name: Optional[str] = None
     price: Optional[float] = None

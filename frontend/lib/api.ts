@@ -109,11 +109,13 @@ export interface Sale {
   receipt_number: string;
   total: number;
   discount: number;
-  payment_method: "cash" | "mpesa";
+  payment_method: "cash" | "mpesa" | "split";
   amount_paid: number;
   change_given: number;
   mpesa_ref: string | null;
   mpesa_phone: string | null;
+  cash_amount: number | null;
+  mpesa_amount: number | null;
   cashier_name: string | null;
   is_returned: boolean;
   created_at: string;
@@ -137,11 +139,13 @@ export interface SaleReturnCreate {
 
 export interface SaleCreate {
   items: { product_id: number; quantity: number }[];
-  payment_method: "cash" | "mpesa";
+  payment_method: "cash" | "mpesa" | "split";
   amount_paid: number;
   discount?: number;
   mpesa_ref?: string;
   mpesa_phone?: string;
+  cash_amount?: number;
+  mpesa_amount?: number;
 }
 
 // --- Dashboard Types ---
@@ -169,7 +173,7 @@ export interface RecentTransaction {
   id: number;
   receipt_number: string;
   total: number;
-  payment_method: "cash" | "mpesa";
+  payment_method: "cash" | "mpesa" | "split";
   cashier_name: string | null;
   item_count: number;
   is_returned: boolean;

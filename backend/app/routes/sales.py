@@ -33,8 +33,8 @@ def create_sale(
 ):
     shop_id = current_user.get("shop_id")
 
-    if data.payment_method not in ("cash", "mpesa"):
-        raise HTTPException(status_code=400, detail="payment_method must be 'cash' or 'mpesa'")
+    if data.payment_method not in ("cash", "mpesa", "split"):
+        raise HTTPException(status_code=400, detail="payment_method must be 'cash', 'mpesa' or 'split'")
 
     items_data = []
     subtotal_total = 0.0
@@ -69,19 +69,42 @@ def create_sale(
 
     total = round(subtotal_total - discount)
 
-    if data.payment_method == "cash" and data.amount_paid < total:
-        raise HTTPException(status_code=400, detail="Amount paid is less than total")
+    cash_amount = None
+    mpesa_amount = None
 
-    change = round(data.amount_paid - total) if data.payment_method == "cash" else 0.0
+    if data.payment_method == "split":
+        cash_amount = round(data.cash_amount or 0.0)
+        mpesa_amount = round(data.mpesa_amount or 0.0)
+        if cash_amount <= 0 or mpesa_amount <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Split payment requires both a cash amount and an M-Pesa amount",
+            )
+        amount_paid = cash_amount + mpesa_amount
+        if amount_paid < total:
+            raise HTTPException(status_code=400, detail="Amount paid is less than total")
+        # Any overpayment is assumed to come back as physical cash change,
+        # since M-Pesa transfers can't hand back partial change themselves.
+        change = round(amount_paid - total)
+    elif data.payment_method == "cash":
+        if data.amount_paid < total:
+            raise HTTPException(status_code=400, detail="Amount paid is less than total")
+        amount_paid = data.amount_paid
+        change = round(amount_paid - total)
+    else:  # mpesa
+        amount_paid = data.amount_paid
+        change = 0.0
 
     sale = Sale(
         total=total,
         discount=round(discount),
         payment_method=data.payment_method,
-        amount_paid=data.amount_paid,
+        amount_paid=amount_paid,
         change_given=change,
         mpesa_ref=data.mpesa_ref,
         mpesa_phone=data.mpesa_phone,
+        cash_amount=cash_amount,
+        mpesa_amount=mpesa_amount,
         cashier_id=int(current_user["sub"]),
         cashier_name=current_user["name"],
         shop_id=shop_id,

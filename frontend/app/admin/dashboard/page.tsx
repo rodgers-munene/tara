@@ -131,7 +131,7 @@ function TrendChart({
   );
 }
 
-// ── Breakdown bars (ordinal / status, direct-labeled, few categories) ─────────
+// Breakdown bars (ordinal / status, direct-labeled, few categories)
 function BreakdownBars({
   rows,
 }: {
