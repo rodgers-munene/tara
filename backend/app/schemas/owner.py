@@ -6,6 +6,7 @@ class OwnerCreate(SQLModel):
     name: str
     email: str
     pin: str
+    referral_code: str | None = None
 
 
 class OwnerRead(SQLModel):

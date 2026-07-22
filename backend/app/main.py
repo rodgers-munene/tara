@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.database import create_db_and_tables, run_migrations
 from app.routes import categories, products, sales, auth
-from app.routes import dashboard, customers, day_close, shops, admin, returns, owner, billing, cron
+from app.routes import dashboard, customers, day_close, shops, admin, returns, owner, billing, cron, public
 
 
 @asynccontextmanager
@@ -46,6 +46,7 @@ app.include_router(returns.router)
 app.include_router(owner.router)
 app.include_router(billing.router)
 app.include_router(cron.router)
+app.include_router(public.router)
 
 
 @app.get("/")

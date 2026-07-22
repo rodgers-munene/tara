@@ -76,10 +76,12 @@ def owner_signup(data: OwnerCreate, session: Session = Depends(get_session)):
     if existing:
         raise HTTPException(status_code=400, detail="An account with this email already exists")
     pin_hash = bcrypt.hashpw(data.pin.encode(), bcrypt.gensalt()).decode()
+
     owner = Owner(
         name=data.name,
         email=data.email.lower(),
         pin_hash=pin_hash,
+        referred_by_code=data.referral_code,
         subscription_status="trialing",
         trial_ends_at=datetime.utcnow() + timedelta(days=7),
     )

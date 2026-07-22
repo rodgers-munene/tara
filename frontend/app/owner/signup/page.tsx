@@ -1,11 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { api } from "../../../lib/api";
 
-export default function OwnerSignupPage() {
-  const [form, setForm] = useState({ name: "", email: "", pin: "", confirm: "" });
+function SignupForm() {
+  const searchParams = useSearchParams();
+
+  const [form, setForm] = useState(() => ({
+    name: "",
+    email: "",
+    pin: "",
+    confirm: "",
+    referralCode: searchParams.get("ref")?.trim() || "",
+  }));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -31,6 +40,7 @@ export default function OwnerSignupPage() {
         name: form.name.trim(),
         email: form.email.trim().toLowerCase(),
         pin: form.pin,
+        referral_code: form.referralCode.trim() || null,
       });
       setDone(true);
     } catch (err: unknown) {
@@ -160,6 +170,22 @@ export default function OwnerSignupPage() {
           />
         </div>
 
+        <div>
+          <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+            Referral code <span style={{ color: "var(--text-3)" }}>(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={form.referralCode}
+            onChange={(e) => set("referralCode", e.target.value)}
+            placeholder="e.g. AGENT123"
+            className="w-full rounded-xl border px-4 text-sm outline-none transition-colors"
+            style={inputStyle}
+            onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+          />
+        </div>
+
         {error && (
           <p
             className="text-sm rounded-xl px-4 py-2.5"
@@ -187,5 +213,13 @@ export default function OwnerSignupPage() {
         </a>
       </p>
     </div>
+  );
+}
+
+export default function OwnerSignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
   );
 }

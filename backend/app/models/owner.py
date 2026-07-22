@@ -16,6 +16,7 @@ class Owner(SQLModel, table=True):
     subscription_ends_at: Optional[datetime] = Field(default=None)
     trial_ends_at: Optional[datetime] = Field(default=None)
     email_verified: bool = Field(default=False)
+    referred_by_code: Optional[str] = Field(default=None)
     trial_warning_sent_at: Optional[datetime] = Field(default=None)
     subscription_warning_sent_at: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
