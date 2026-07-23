@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, X, Package, PackagePlus, Loader2, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Search, X, Package, PackagePlus, Loader2, Pencil, Trash2, AlertTriangle, Upload } from "lucide-react";
 import NavBar from "../components/NavBar";
 import { useAuth } from "../components/AuthProvider";
-import { api, useApi, invalidateApi, fmtKES, type Category, type Product } from "../../lib/api";
+import { api, useApi, invalidateApi, fmtKES, type Category, type Product, type BulkImportResult } from "../../lib/api";
 
 // ── Skeleton row ──────────────────────────────────────────────────────────────
 function SkeletonRow() {
@@ -533,6 +533,213 @@ function CategoryForm({ onSave, onClose }: { onSave: () => void; onClose: () => 
   );
 }
 
+// ── CSV import ──────────────────────────────────────────────────────────────────
+const IMPORT_FIELDS: { key: string; label: string; required: boolean }[] = [
+  { key: "name", label: "Product name", required: true },
+  { key: "price", label: "Selling price", required: true },
+  { key: "buying_price", label: "Buying price", required: false },
+  { key: "stock", label: "Stock", required: false },
+  { key: "min_stock", label: "Minimum stock", required: false },
+  { key: "pricing_mode", label: "Pricing mode (unit/weight)", required: false },
+  { key: "unit_label", label: "Unit label (e.g. kg)", required: false },
+  { key: "track_stock", label: "Track stock (true/false)", required: false },
+  { key: "barcode", label: "Barcode", required: false },
+  { key: "category", label: "Category", required: false },
+];
+
+function ImportSheet({ onSave, onClose }: { onSave: () => void; onClose: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState<BulkImportResult | null>(null);
+  const [error, setError] = useState("");
+  const [mappingHeaders, setMappingHeaders] = useState<string[] | null>(null);
+  const [columnMap, setColumnMap] = useState<Record<string, string>>({});
+
+  function downloadTemplate() {
+    const csv =
+      "name,price,buying_price,stock,min_stock,pricing_mode,unit_label,track_stock,barcode,category\n" +
+      "Rice 2kg,250,200,10,2,unit,,true,1234567890123,Grains\n" +
+      "Loose Beans,,180,20,5,weight,kg,true,,Grains\n";
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tara-product-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function resetFile(f: File | null) {
+    setFile(f);
+    setResult(null);
+    setError("");
+    setMappingHeaders(null);
+    setColumnMap({});
+  }
+
+  async function submitImport(mapping?: Record<string, string>) {
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (mapping) formData.append("column_map", JSON.stringify(mapping));
+      const res = await api.upload<BulkImportResult>("/products/bulk-import", formData);
+      if (res.needs_mapping) {
+        const initial: Record<string, string> = {};
+        for (const f of IMPORT_FIELDS) {
+          const suggested = res.suggested_map?.[f.key];
+          if (suggested) initial[f.key] = suggested;
+        }
+        setColumnMap(initial);
+        setMappingHeaders(res.headers ?? []);
+      } else {
+        setResult(res);
+        if (res.created > 0) onSave();
+      }
+    } catch (err) {
+      setError((err as Error).message ?? "Import failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const canConfirmMapping = !!columnMap.name && !!columnMap.price;
+
+  return (
+    <>
+      <div className="sheet-backdrop" onClick={onClose} />
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl px-5 pb-10 pt-5 max-h-[80vh] overflow-y-auto"
+        style={{ background: "var(--surface)" }}
+      >
+        <p className="font-semibold text-base mb-1" style={{ color: "var(--text)" }}>
+          Import products
+        </p>
+
+        {mappingHeaders ? (
+          <>
+            <p className="text-xs mb-4" style={{ color: "var(--text-3)" }}>
+              We couldn&apos;t automatically match all your columns — tell us which column in your file is which.
+            </p>
+            <div className="flex flex-col gap-2 mb-4">
+              {IMPORT_FIELDS.map((f) => (
+                <div key={f.key} className="flex items-center justify-between gap-3">
+                  <label className="text-sm" style={{ color: "var(--text-2)" }}>
+                    {f.label}
+                    {f.required && <span style={{ color: "var(--danger)" }}> *</span>}
+                  </label>
+                  <select
+                    value={columnMap[f.key] ?? ""}
+                    onChange={(e) =>
+                      setColumnMap((m) => {
+                        const next = { ...m };
+                        if (e.target.value) next[f.key] = e.target.value;
+                        else delete next[f.key];
+                        return next;
+                      })
+                    }
+                    className="rounded-lg border px-2 h-9 text-sm outline-none"
+                    style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)" }}
+                  >
+                    <option value="">— not in file —</option>
+                    {mappingHeaders.map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+
+            {error && (
+              <p className="text-sm rounded-xl px-4 py-3 mb-3" style={{ background: "var(--danger-light)", color: "var(--danger)" }}>
+                {error}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => submitImport(columnMap)}
+                disabled={!canConfirmMapping || uploading}
+                className="flex-1 rounded-xl font-semibold text-sm text-white disabled:opacity-50 flex items-center justify-center gap-1.5"
+                style={{ background: "var(--brand)", height: 48 }}
+              >
+                {uploading ? <Loader2 size={16} className="animate-spin" /> : null}
+                Continue import
+              </button>
+            </div>
+            <button onClick={() => resetFile(null)} className="mt-3 w-full py-2 text-sm" style={{ color: "var(--text-3)" }}>
+              Choose a different file
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-xs mb-4" style={{ color: "var(--text-3)" }}>
+              Upload a CSV or Excel (.xlsx) file to add many products at once.
+            </p>
+
+            <button
+              type="button"
+              onClick={downloadTemplate}
+              className="text-xs font-semibold mb-4"
+              style={{ color: "var(--brand)" }}
+            >
+              Download CSV template
+            </button>
+
+            <input
+              type="file"
+              accept=".csv,.xlsx"
+              onChange={(e) => resetFile(e.target.files?.[0] ?? null)}
+              className="w-full rounded-xl border px-3 py-3 text-sm outline-none mb-4"
+              style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text)" }}
+            />
+
+            {error && (
+              <p className="text-sm rounded-xl px-4 py-3 mb-3" style={{ background: "var(--danger-light)", color: "var(--danger)" }}>
+                {error}
+              </p>
+            )}
+
+            {result && (
+              <div className="mb-4 rounded-xl p-3 text-xs" style={{ background: "var(--surface-2)" }}>
+                <p className="font-semibold mb-1" style={{ color: "var(--text)" }}>
+                  {result.created} added, {result.skipped} skipped
+                </p>
+                {result.errors.length > 0 && (
+                  <ul className="mt-2 flex flex-col gap-1 max-h-40 overflow-y-auto" style={{ color: "var(--text-3)" }}>
+                    {result.errors.map((e, i) => (
+                      <li key={i}>{e}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => submitImport()}
+                disabled={!file || uploading}
+                className="flex-1 rounded-xl font-semibold text-sm text-white disabled:opacity-50 flex items-center justify-center gap-1.5"
+                style={{ background: "var(--brand)", height: 48 }}
+              >
+                {uploading ? <Loader2 size={16} className="animate-spin" /> : null}
+                Upload
+              </button>
+            </div>
+            <button onClick={onClose} className="mt-3 w-full py-2 text-sm" style={{ color: "var(--text-3)" }}>
+              {result ? "Done" : "Cancel"}
+            </button>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
   const { user } = useAuth();
@@ -543,6 +750,7 @@ export default function InventoryPage() {
   const [activeCat, setActiveCat] = useState<number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showAddCat, setShowAddCat] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [adjustingStock, setAdjustingStock] = useState<Product | null>(null);
 
@@ -605,6 +813,14 @@ export default function InventoryPage() {
               style={{ borderColor: "var(--border)", color: "var(--text-2)", background: "var(--surface-2)" }}
             >
               + Category
+            </button>
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 h-8 rounded-lg border"
+              style={{ borderColor: "var(--border)", color: "var(--text-2)", background: "var(--surface-2)" }}
+            >
+              <Upload size={13} />
+              Import
             </button>
             <button
               onClick={() => { setEditing(null); setShowAdd(true); }}
@@ -854,6 +1070,13 @@ export default function InventoryPage() {
         <CategoryForm
           onSave={() => { setShowAddCat(false); reload(); }}
           onClose={() => setShowAddCat(false)}
+        />
+      )}
+
+      {showImport && (
+        <ImportSheet
+          onSave={reload}
+          onClose={() => setShowImport(false)}
         />
       )}
     </div>

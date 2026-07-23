@@ -45,6 +45,15 @@ class StockAdjust(SQLModel):
     delta: float  # positive to add stock, negative to remove
 
 
+class BulkImportResult(SQLModel):
+    needs_mapping: bool = False
+    headers: Optional[list[str]] = None
+    suggested_map: Optional[dict[str, Optional[str]]] = None
+    created: int = 0
+    skipped: int = 0
+    errors: list[str] = []
+
+
 class ProductUpdate(SQLModel):
     name: Optional[str] = None
     price: Optional[float] = None

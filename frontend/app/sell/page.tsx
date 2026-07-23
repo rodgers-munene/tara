@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Search, X, Plus, Minus, ChevronUp, Loader2, LogOut,
-  Tag, CheckCircle2, Share2, Delete,
+  Tag, CheckCircle2, Share2, Delete, ScanLine,
 } from "lucide-react";
 import NavBar from "../components/NavBar";
 import { useAuth } from "../components/AuthProvider";
@@ -11,6 +11,7 @@ import { useOffline } from "../components/OfflineProvider";
 import { api, useApi, invalidateApi, fmtKES, type Category, type Product, type Sale, type SaleCreate } from "../../lib/api";
 import { enqueueSale } from "../../lib/offlineQueue";
 import { shareReceipt } from "../../lib/receipt";
+import BarcodeScanModal, { type ScanFeedback } from "../components/BarcodeScanModal";
 
 interface CartItem {
   product: Product;
@@ -1153,6 +1154,8 @@ export default function SellPage() {
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [weightPick, setWeightPick] = useState<Product | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanFeedback, setScanFeedback] = useState<ScanFeedback | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -1165,6 +1168,12 @@ export default function SellPage() {
   const searchRef = useRef<HTMLInputElement>(null);
   const { user, logout } = useAuth();
   const { isOnline, refreshQueue } = useOffline();
+
+  useEffect(() => {
+    if (!scanFeedback) return;
+    const t = setTimeout(() => setScanFeedback(null), 900);
+    return () => clearTimeout(t);
+  }, [scanFeedback]);
 
   const catColorMap: Record<number, string> = {};
   for (const c of categories) {
@@ -1222,6 +1231,25 @@ export default function SellPage() {
       return [...prev, { product, qty }];
     });
   }, []);
+
+  const handleScanDetect = useCallback((code: string) => {
+    const product = products.find((p) => p.barcode === code);
+    if (!product) {
+      setScanFeedback({ type: "error", message: `Not found: ${code}` });
+      return;
+    }
+    if (product.track_stock && product.stock <= 0) {
+      setScanFeedback({ type: "error", message: `${product.name} — out of stock` });
+      return;
+    }
+    if (product.pricing_mode === "weight") {
+      setScanOpen(false);
+      setWeightPick(product);
+      return;
+    }
+    addToCart(product);
+    setScanFeedback({ type: "success", message: product.name });
+  }, [products, addToCart]);
 
   const clearCart = useCallback(() => {
     setCart([]);
@@ -1291,7 +1319,12 @@ export default function SellPage() {
 
   const filtered = products.filter((p) => {
     if (activeCat !== null && p.category_id !== activeCat) return false;
-    if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const matchesName = p.name.toLowerCase().includes(q);
+      const matchesBarcode = !!p.barcode && p.barcode.includes(search);
+      if (!matchesName && !matchesBarcode) return false;
+    }
     return true;
   });
 
@@ -1325,7 +1358,14 @@ export default function SellPage() {
             </button>
           )}
         </div>
-        
+        <button
+          onClick={() => setScanOpen(true)}
+          aria-label="Scan barcode"
+          className="shrink-0 flex items-center justify-center rounded-xl"
+          style={{ background: "var(--surface-2)", border: "1.5px solid var(--border)", width: 36, height: 36 }}
+        >
+          <ScanLine size={16} style={{ color: "var(--text-2)" }} />
+        </button>
       </header>
 
       {/* Category tabs */}
@@ -1465,6 +1505,15 @@ export default function SellPage() {
 
       {/* Offline queued overlay */}
       {offlineQueued && <QueuedOverlay onNewSale={clearCart} />}
+
+      {/* Barcode scanner — scans continuously so several items can be added back-to-back */}
+      {scanOpen && (
+        <BarcodeScanModal
+          feedback={scanFeedback}
+          onDetect={handleScanDetect}
+          onClose={() => setScanOpen(false)}
+        />
+      )}
 
       {/* Sale error overlay */}
       {saleError && pendingPayload && (

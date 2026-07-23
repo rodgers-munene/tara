@@ -31,6 +31,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+async function upload<T>(path: string, formData: FormData): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("tara_token");
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+  }
+  // No Content-Type here — the browser sets the multipart boundary itself.
+  const res = await fetch(`${BASE}${path}`, { method: "POST", headers, body: formData });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.detail ?? `Request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body: unknown) =>
@@ -38,6 +53,7 @@ export const api = {
   patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
   delete: (path: string) => request<void>(path, { method: "DELETE" }),
+  upload,
 };
 
 // Cached GET for staff-facing pages. Serves stale-while-revalidate data from
@@ -93,6 +109,15 @@ export interface Product {
   barcode: string | null;
   category_id: number | null;
   active: boolean;
+}
+
+export interface BulkImportResult {
+  needs_mapping: boolean;
+  headers: string[] | null;
+  suggested_map: Record<string, string | null> | null;
+  created: number;
+  skipped: number;
+  errors: string[];
 }
 
 export interface SaleItemRead {
