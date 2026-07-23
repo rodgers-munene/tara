@@ -790,45 +790,50 @@ export default function InventoryPage() {
 
       {/* Header */}
       <header
-        className="sticky top-12 lg:top-0 z-20 flex items-center gap-3 px-4 h-14 border-b"
+        className="sticky top-12 lg:top-0 z-20 flex items-center gap-2 sm:gap-3 px-4 h-14 border-b"
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
-        <span className="font-semibold text-base flex-1" style={{ color: "var(--text)" }}>
+        <span className="font-semibold text-base flex-1 min-w-0 truncate" style={{ color: "var(--text)" }}>
           Inventory
         </span>
         {lowStockCount > 0 && (
           <span
-            className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
+            className="flex items-center gap-1 shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full"
             style={{ background: "var(--warning-light)", color: "var(--warning)" }}
           >
             <AlertTriangle size={11} />
-            {lowStockCount} low
+            {lowStockCount}
+            <span className="hidden sm:inline"> low</span>
           </span>
         )}
         {canEdit && (
           <>
             <button
               onClick={() => setShowAddCat(true)}
-              className="text-xs font-medium px-3 h-8 rounded-lg border"
+              aria-label="Add category"
+              className="flex items-center justify-center gap-1.5 shrink-0 text-xs font-medium h-8 w-8 sm:w-auto sm:px-3 rounded-lg border"
               style={{ borderColor: "var(--border)", color: "var(--text-2)", background: "var(--surface-2)" }}
             >
-              + Category
+              <Plus size={14} />
+              <span className="hidden sm:inline">Category</span>
             </button>
             <button
               onClick={() => setShowImport(true)}
-              className="flex items-center gap-1.5 text-xs font-medium px-3 h-8 rounded-lg border"
+              aria-label="Import products"
+              className="flex items-center justify-center gap-1.5 shrink-0 text-xs font-medium h-8 w-8 sm:w-auto sm:px-3 rounded-lg border"
               style={{ borderColor: "var(--border)", color: "var(--text-2)", background: "var(--surface-2)" }}
             >
               <Upload size={13} />
-              Import
+              <span className="hidden sm:inline">Import</span>
             </button>
             <button
               onClick={() => { setEditing(null); setShowAdd(true); }}
-              className="flex items-center gap-1.5 text-sm font-semibold px-3 h-8 rounded-lg text-white"
+              aria-label="Add product"
+              className="flex items-center justify-center gap-1.5 shrink-0 text-sm font-semibold h-8 w-8 sm:w-auto sm:px-3 rounded-lg text-white"
               style={{ background: "var(--brand)" }}
             >
               <Plus size={15} />
-              Product
+              <span className="hidden sm:inline">Product</span>
             </button>
           </>
         )}
