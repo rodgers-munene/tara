@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, X, Package, PackagePlus, Loader2, Pencil, Trash2, AlertTriangle, Upload } from "lucide-react";
+import { Plus, Search, X, Package, PackagePlus, Loader2, Pencil, Trash2, AlertTriangle, Upload, Tag, ScanLine } from "lucide-react";
 import NavBar from "../components/NavBar";
 import { useAuth } from "../components/AuthProvider";
+import BarcodeScanModal from "../components/BarcodeScanModal";
 import { api, useApi, invalidateApi, fmtKES, type Category, type Product, type BulkImportResult } from "../../lib/api";
 
-// ── Skeleton row ──────────────────────────────────────────────────────────────
+// Skeleton row 
 function SkeletonRow() {
   return (
     <div className="flex items-center gap-4 px-4 py-3.5">
@@ -20,15 +21,17 @@ function SkeletonRow() {
   );
 }
 
-// ── Shared form fields ────────────────────────────────────────────────────────
+// Shared form fields 
 function ProductFormContent({
   initial,
   categories,
+  products,
   onSave,
   onClose,
 }: {
   initial?: Product;
   categories: Category[];
+  products: Product[];
   onSave: () => void;
   onClose: () => void;
 }) {
@@ -46,14 +49,20 @@ function ProductFormContent({
   const [trackStock, setTrackStock] = useState(initial ? initial.track_stock : false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [scanOpen, setScanOpen] = useState(false);
 
   const isEdit = !!initial;
   const isWeight = pricingMode === "weight";
   const showStockFields = !isWeight || trackStock;
+  const trimmedBarcode = barcode.trim();
+  const duplicateProduct = trimmedBarcode
+    ? products.find((p) => p.barcode === trimmedBarcode && p.id !== initial?.id)
+    : undefined;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !price) { setError("Name and selling price are required."); return; }
+    if (duplicateProduct) { setError(`Barcode already used by "${duplicateProduct.name}" — edit that product instead of adding a duplicate.`); return; }
     setSaving(true);
     setError("");
     try {
@@ -312,16 +321,32 @@ function ProductFormContent({
             Barcode{" "}
             <span style={{ color: "var(--text-3)", fontWeight: 400 }}>(optional)</span>
           </label>
-          <input
-            type="text"
-            value={barcode}
-            onChange={(e) => setBarcode(e.target.value)}
-            placeholder="Scan or type barcode"
-            className="w-full rounded-xl border px-4 text-sm outline-none transition-colors font-mono"
-            style={inputStyle}
-            onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={barcode}
+              onChange={(e) => setBarcode(e.target.value)}
+              placeholder="Scan or type barcode"
+              className="flex-1 min-w-0 rounded-xl border px-4 text-sm outline-none transition-colors font-mono"
+              style={inputStyle}
+              onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+            />
+            <button
+              type="button"
+              onClick={() => setScanOpen(true)}
+              aria-label="Scan barcode"
+              className="shrink-0 flex items-center justify-center rounded-xl"
+              style={{ background: "var(--surface-2)", border: "1.5px solid var(--border)", width: 48, height: 48 }}
+            >
+              <ScanLine size={18} style={{ color: "var(--text-2)" }} />
+            </button>
+          </div>
+          {duplicateProduct && (
+            <p className="text-xs mt-1.5" style={{ color: "var(--danger)" }}>
+              Already used by &quot;{duplicateProduct.name}&quot; — edit that product instead of adding a duplicate.
+            </p>
+          )}
         </div>
 
         {error && (
@@ -341,7 +366,7 @@ function ProductFormContent({
       >
         <button
           onClick={handleSubmit as unknown as React.MouseEventHandler}
-          disabled={saving}
+          disabled={saving || !!duplicateProduct}
           className="w-full rounded-xl font-semibold text-base text-white transition-all active:scale-98 disabled:opacity-60 flex items-center justify-center gap-2"
           style={{ background: "var(--brand)", height: 52 }}
         >
@@ -349,11 +374,19 @@ function ProductFormContent({
           {isEdit ? "Save changes" : "Add product"}
         </button>
       </div>
+
+      {scanOpen && (
+        <BarcodeScanModal
+          feedback={null}
+          onDetect={(code) => { setBarcode(code); setScanOpen(false); }}
+          onClose={() => setScanOpen(false)}
+        />
+      )}
     </>
   );
 }
 
-// ── Mobile: bottom sheet wrapper ──────────────────────────────────────────────
+// Mobile: bottom sheet wrapper
 function ProductFormSheet(props: React.ComponentProps<typeof ProductFormContent>) {
   return (
     <>
@@ -365,7 +398,7 @@ function ProductFormSheet(props: React.ComponentProps<typeof ProductFormContent>
   );
 }
 
-// ── Stock adjust sheet ────────────────────────────────────────────────────────
+// Stock adjust sheet
 function StockAdjustSheet({
   product,
   onSave,
@@ -454,7 +487,7 @@ function StockAdjustSheet({
   );
 }
 
-// ── Category form ─────────────────────────────────────────────────────────────
+// Category form
 function CategoryForm({ onSave, onClose }: { onSave: () => void; onClose: () => void }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState("#16a34a");
@@ -533,7 +566,7 @@ function CategoryForm({ onSave, onClose }: { onSave: () => void; onClose: () => 
   );
 }
 
-// ── CSV import ──────────────────────────────────────────────────────────────────
+// CSV import
 const IMPORT_FIELDS: { key: string; label: string; required: boolean }[] = [
   { key: "name", label: "Product name", required: true },
   { key: "price", label: "Selling price", required: true },
@@ -740,7 +773,7 @@ function ImportSheet({ onSave, onClose }: { onSave: () => void; onClose: () => v
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// Main page 
 export default function InventoryPage() {
   const { user } = useAuth();
   const canEdit = user?.role === "owner";
@@ -780,6 +813,7 @@ export default function InventoryPage() {
   const formProps = {
     initial: editing ?? undefined,
     categories,
+    products,
     onSave: () => { setShowAdd(false); setEditing(null); reload(); },
     onClose: () => { setShowAdd(false); setEditing(null); },
   };
@@ -790,7 +824,7 @@ export default function InventoryPage() {
 
       {/* Header */}
       <header
-        className="sticky top-12 lg:top-0 z-20 flex items-center gap-2 sm:gap-3 px-4 h-14 border-b"
+        className="sticky top-12 lg:top-0 z-20 flex items-center gap-1.5 sm:gap-3 px-4 h-14 border-b"
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <span className="font-semibold text-base flex-1 min-w-0 truncate" style={{ color: "var(--text)" }}>
@@ -811,29 +845,29 @@ export default function InventoryPage() {
             <button
               onClick={() => setShowAddCat(true)}
               aria-label="Add category"
-              className="flex items-center justify-center gap-1.5 shrink-0 text-xs font-medium h-8 w-8 sm:w-auto sm:px-3 rounded-lg border"
+              className="flex items-center justify-center gap-1 sm:gap-1.5 shrink-0 whitespace-nowrap text-[11px] sm:text-xs font-medium h-8 px-2 sm:px-3 rounded-lg border"
               style={{ borderColor: "var(--border)", color: "var(--text-2)", background: "var(--surface-2)" }}
             >
-              <Plus size={14} />
-              <span className="hidden sm:inline">Category</span>
+              <Tag size={14} className="shrink-0" />
+              Category
             </button>
             <button
               onClick={() => setShowImport(true)}
               aria-label="Import products"
-              className="flex items-center justify-center gap-1.5 shrink-0 text-xs font-medium h-8 w-8 sm:w-auto sm:px-3 rounded-lg border"
+              className="flex items-center justify-center gap-1 sm:gap-1.5 shrink-0 whitespace-nowrap text-[11px] sm:text-xs font-medium h-8 px-2 sm:px-3 rounded-lg border"
               style={{ borderColor: "var(--border)", color: "var(--text-2)", background: "var(--surface-2)" }}
             >
-              <Upload size={13} />
-              <span className="hidden sm:inline">Import</span>
+              <Upload size={13} className="shrink-0" />
+              Import
             </button>
             <button
               onClick={() => { setEditing(null); setShowAdd(true); }}
               aria-label="Add product"
-              className="flex items-center justify-center gap-1.5 shrink-0 text-sm font-semibold h-8 w-8 sm:w-auto sm:px-3 rounded-lg text-white"
+              className="flex items-center justify-center gap-1 sm:gap-1.5 shrink-0 whitespace-nowrap text-[11px] sm:text-sm font-semibold h-8 px-2 sm:px-3 rounded-lg text-white"
               style={{ background: "var(--brand)" }}
             >
-              <Plus size={15} />
-              <span className="hidden sm:inline">Product</span>
+              <Plus size={15} className="shrink-0" />
+              Product
             </button>
           </>
         )}

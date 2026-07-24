@@ -106,12 +106,29 @@ def list_products(
     return products
 
 
+def _find_barcode_conflict(
+    session: Session, shop_id: int, barcode: str, exclude_id: int | None = None
+) -> Product | None:
+    statement = select(Product).where(Product.shop_id == shop_id, Product.barcode == barcode)
+    if exclude_id is not None:
+        statement = statement.where(Product.id != exclude_id)
+    return session.exec(statement).first()
+
+
 @router.post("/", response_model=ProductRead, status_code=201)
 def create_product(
     data: ProductCreate,
     session: Session = Depends(get_session),
     current_user: dict = Depends(require_shop_owner_role),
 ):
+    shop_id = current_user.get("shop_id")
+    if data.barcode:
+        conflict = _find_barcode_conflict(session, shop_id, data.barcode)
+        if conflict:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Barcode already used by '{conflict.name}'",
+            )
     product = Product(
         name=data.name,
         price=data.price,
@@ -123,7 +140,7 @@ def create_product(
         track_stock=data.track_stock,
         barcode=data.barcode,
         category_id=data.category_id,
-        shop_id=current_user.get("shop_id"),
+        shop_id=shop_id,
     )
     session.add(product)
     session.commit()
@@ -303,6 +320,15 @@ def update_product(
     if not product or product.shop_id != current_user.get("shop_id"):
         raise HTTPException(status_code=404, detail="Product not found")
     updates = data.model_dump(exclude_unset=True)
+    if updates.get("barcode"):
+        conflict = _find_barcode_conflict(
+            session, product.shop_id, updates["barcode"], exclude_id=product.id
+        )
+        if conflict:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Barcode already used by '{conflict.name}'",
+            )
     for key, value in updates.items():
         setattr(product, key, value)
     session.add(product)
