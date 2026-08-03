@@ -1,0 +1,3 @@
+api.tara.ekshop.store {
+    reverse_proxy localhost:8000
+}

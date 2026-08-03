@@ -1,0 +1,14 @@
+[Unit]
+Description=Tara backend (FastAPI/uvicorn)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/tara/backend
+EnvironmentFile=/opt/tara/backend/.env
+ExecStart=/opt/tara/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
