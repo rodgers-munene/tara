@@ -27,8 +27,8 @@ def run_migrations():
             row = conn.execute(text("SELECT id FROM shop ORDER BY id LIMIT 1")).fetchone()
             if row is None:
                 conn.execute(text(
-                    "INSERT INTO shop (name, slug, plan, active, created_at) "
-                    "VALUES ('Default Shop', 'default', 'free', true, NOW())"
+                    "INSERT INTO shop (name, slug, active, created_at) "
+                    "VALUES ('Default Shop', 'default', true, NOW())"
                 ))
                 conn.commit()
                 row = conn.execute(text("SELECT id FROM shop ORDER BY id LIMIT 1")).fetchone()
@@ -48,9 +48,21 @@ def run_migrations():
                 "ALTER TABLE shop ADD COLUMN IF NOT EXISTS subscription_status VARCHAR NOT NULL DEFAULT 'trialing'",
                 "ALTER TABLE shop ADD COLUMN IF NOT EXISTS billing_cycle VARCHAR",
                 "ALTER TABLE shop ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMP",
-                # `plan` was superseded by owner.plan and dropped from the Shop model, but the
-                # column's stale NOT NULL constraint still blocks every shop insert that omits it.
-                "ALTER TABLE shop ALTER COLUMN plan DROP NOT NULL",
+                # `plan` was superseded by owner.plan and dropped from the Shop model. On
+                # databases old enough to still have the column, its stale NOT NULL constraint
+                # blocks every shop insert that omits it; on fresh schemas the column doesn't
+                # exist at all, so this is guarded (no IF EXISTS variant for ALTER COLUMN).
+                """
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'shop' AND column_name = 'plan'
+                    ) THEN
+                        ALTER TABLE shop ALTER COLUMN plan DROP NOT NULL;
+                    END IF;
+                END $$;
+                """,
                 # Audit (prompted by the mpesa_ref incident above): every other model field on
                 # a pre-multi-tenant table that had no matching migration here, so a DB whose
                 # tables predate these columns doesn't 500 on the first insert that sets them.
@@ -111,36 +123,44 @@ def run_migrations():
 
             # One-time backfill: copy each owner's subscription state up from their shops.
             # Guarded on still-at-defaults so this is a no-op once every owner is migrated,
-            # and never clobbers a real activation that happened after cutover.
-            conn.execute(text("""
-                UPDATE owner SET
-                    plan = sub.plan,
-                    billing_cycle = sub.billing_cycle,
-                    subscription_status = sub.subscription_status,
-                    subscription_ends_at = sub.subscription_ends_at,
-                    trial_ends_at = sub.trial_ends_at
-                FROM (
-                    SELECT DISTINCT ON (shop.owner_id)
-                        shop.owner_id AS owner_id,
-                        shop.plan AS plan,
-                        shop.billing_cycle AS billing_cycle,
-                        shop.subscription_status AS subscription_status,
-                        shop.subscription_ends_at AS subscription_ends_at,
-                        shop.trial_ends_at AS trial_ends_at
-                    FROM shop
-                    WHERE shop.owner_id IS NOT NULL
-                    ORDER BY shop.owner_id,
-                        CASE shop.plan WHEN 'medium' THEN 2 WHEN 'small' THEN 1 ELSE 0 END DESC,
-                        CASE shop.subscription_status WHEN 'active' THEN 2 WHEN 'trialing' THEN 1 ELSE 0 END DESC,
-                        shop.subscription_ends_at DESC NULLS LAST
-                ) sub
-                WHERE owner.id = sub.owner_id
-                    AND owner.subscription_ends_at IS NULL
-                    AND owner.plan = 'free'
-                    AND owner.subscription_status = 'trialing'
-                    AND sub.plan IS NOT NULL
-            """))
-            conn.commit()
+            # and never clobbers a real activation that happened after cutover. Only
+            # meaningful on databases old enough to still have shop.plan (pre-owner-level
+            # billing); on a fresh schema there's no legacy per-shop data to lift, so skip.
+            shop_plan_exists = conn.execute(text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name = 'shop' AND column_name = 'plan'"
+            )).fetchone() is not None
+
+            if shop_plan_exists:
+                conn.execute(text("""
+                    UPDATE owner SET
+                        plan = sub.plan,
+                        billing_cycle = sub.billing_cycle,
+                        subscription_status = sub.subscription_status,
+                        subscription_ends_at = sub.subscription_ends_at,
+                        trial_ends_at = sub.trial_ends_at
+                    FROM (
+                        SELECT DISTINCT ON (shop.owner_id)
+                            shop.owner_id AS owner_id,
+                            shop.plan AS plan,
+                            shop.billing_cycle AS billing_cycle,
+                            shop.subscription_status AS subscription_status,
+                            shop.subscription_ends_at AS subscription_ends_at,
+                            shop.trial_ends_at AS trial_ends_at
+                        FROM shop
+                        WHERE shop.owner_id IS NOT NULL
+                        ORDER BY shop.owner_id,
+                            CASE shop.plan WHEN 'medium' THEN 2 WHEN 'small' THEN 1 ELSE 0 END DESC,
+                            CASE shop.subscription_status WHEN 'active' THEN 2 WHEN 'trialing' THEN 1 ELSE 0 END DESC,
+                            shop.subscription_ends_at DESC NULLS LAST
+                    ) sub
+                    WHERE owner.id = sub.owner_id
+                        AND owner.subscription_ends_at IS NULL
+                        AND owner.plan = 'free'
+                        AND owner.subscription_status = 'trialing'
+                        AND sub.plan IS NOT NULL
+                """))
+                conn.commit()
 
             # Add shop_id column to every tenant table (no-op if already exists)
             tables = ["staff", "category", "product", "sale", "customer", "credit_entry", "day_close"]
