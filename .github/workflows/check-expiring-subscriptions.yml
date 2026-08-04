@@ -12,8 +12,11 @@ jobs:
     steps:
       - name: Trigger expiry check
         run: |
-          curl -sf -X POST "${BACKEND_URL}/cron/check-expiring" \
-            -H "X-Cron-Secret: ${CRON_SECRET}"
+          curl -v -X POST "${BACKEND_URL}/cron/check-expiring" \
+            -H "X-Cron-Secret: ${CRON_SECRET}" \
+            --max-time 30 \
+            --retry 2 \
+            --retry-delay 5
         env:
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
