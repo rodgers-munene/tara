@@ -37,7 +37,15 @@ systemctl daemon-reload
 systemctl enable tara-backend
 systemctl restart tara-backend
 
-cp "$APP_DIR/infra/Caddyfile" /etc/caddy/Caddyfile
-systemctl reload caddy 2>/dev/null || systemctl restart caddy
+cp "$APP_DIR/infra/systemd/certbot-renew.service" /etc/systemd/system/certbot-renew.service
+cp "$APP_DIR/infra/systemd/certbot-renew.timer" /etc/systemd/system/certbot-renew.timer
+systemctl daemon-reload
+systemctl enable --now certbot-renew.timer
+
+if [ ! -d "/etc/letsencrypt/live/api.tara.ekshop.store" ]; then
+  cp "$APP_DIR/infra/nginx/tara.conf" /etc/nginx/conf.d/tara.conf
+fi
+nginx -t && systemctl reload nginx 2>/dev/null || systemctl restart nginx
+
 
 echo "Deploy complete."
