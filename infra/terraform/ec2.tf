@@ -59,6 +59,10 @@ resource "aws_instance" "main" {
     volume_type = "gp3"
   }
 
+  lifecycle {
+    ignore_changes = [ami]
+  }
+
   user_data = file("${path.module}/user_data.sh")
 
   tags = {
