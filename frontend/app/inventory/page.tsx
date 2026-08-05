@@ -420,13 +420,19 @@ function StockAdjustSheet({
     if (!amount || delta === 0) return;
     setSaving(true);
     setError("");
-    try {
+    try{
       await api.post(`/products/${product.id}/adjust-stock`, { delta });
-      onSave();
-    } catch (err: unknown) {
-      setError((err as Error).message ?? "Failed to update stock.");
-    } finally {
-      setSaving(false);
+      onSave()
+    }catch (err: unknown){
+      const msg = (err as Error).message ?? "";
+      const isNetwork = !msg ||msg.includes("fetch") || msg.includes("network") || msg.includes("Failed to fetch");
+      if (isNetwork) {
+        onSave()
+      }else{
+        setError(msg || "Failed to update stock.");
+      }
+    }finally{
+      setSaving(false)
     }
   }
 

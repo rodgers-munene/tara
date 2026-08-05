@@ -9,7 +9,6 @@ import NavBar from "../components/NavBar";
 import { useAuth } from "../components/AuthProvider";
 import { useOffline } from "../components/OfflineProvider";
 import { api, useApi, invalidateApi, fmtKES, type Category, type Product, type Sale, type SaleCreate } from "../../lib/api";
-import { enqueueSale } from "../../lib/offlineQueue";
 import { shareReceipt } from "../../lib/receipt";
 import BarcodeScanModal, { type ScanFeedback } from "../components/BarcodeScanModal";
 
@@ -1167,7 +1166,7 @@ export default function SellPage() {
   const [pendingPayload, setPendingPayload] = useState<SaleCreate | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const { user, logout } = useAuth();
-  const { isOnline, refreshQueue } = useOffline();
+  const { refreshQueue } = useOffline();
 
   useEffect(() => {
     if (!scanFeedback) return;
@@ -1283,11 +1282,15 @@ export default function SellPage() {
     } catch (e: unknown) {
       const msg = (e as Error).message ?? "";
       const isNetwork = !msg || msg.includes("fetch") || msg.includes("network") || msg.includes("Failed to fetch");
-      setSaleError(isNetwork
-        ? "Could not reach the server. Check your connection and try again."
-        : msg
-      );
-      setPendingPayload(payload);
+      if ( isNetwork ) {
+        setPayOpen(false)
+        setOfflineQueued(true)
+        refreshQueue()
+      }else{
+        setSaleError(msg);
+        setPendingPayload(payload)
+      }
+      
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -1306,16 +1309,8 @@ export default function SellPage() {
       mpesa_amount: result.mpesaAmount,
     };
 
-    if (!isOnline) {
-      enqueueSale(payload, user?.name ?? "");
-      refreshQueue();
-      setPayOpen(false);
-      setOfflineQueued(true);
-      return;
-    }
-
-    await submitSale(payload);
-  }, [cart, discountAmount, isOnline, user, refreshQueue, submitSale]);
+    await submitSale(payload)
+  }, [cart, discountAmount, user, refreshQueue, submitSale]);
 
   const filtered = products.filter((p) => {
     if (activeCat !== null && p.category_id !== activeCat) return false;

@@ -1,14 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
 import { SWRConfig } from "swr";
 import { AuthProvider } from "./components/AuthProvider";
 import { OfflineProvider } from "./components/OfflineProvider";
 import "./globals.css";
-
-const geist = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import { SerwistProvider } from "@serwist/turbopack/react";
+import { UpdatePrompt } from "./components/UpdatePrompt";
+import { InstallPrompt } from "./components/InstallPrompt";
 
 export const metadata: Metadata = {
   title: "Tara POS",
@@ -29,9 +27,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={geist.variable}>
+    <html lang="en" className={GeistSans.variable}>
       <body className="min-h-svh flex flex-col">
-        <SWRConfig
+        <SerwistProvider swUrl="/serwist/sw.js">
+          <UpdatePrompt />
+          <InstallPrompt />
+          <SWRConfig
           value={{
             revalidateOnFocus: true,
             revalidateIfStale: true,
@@ -43,6 +44,7 @@ export default function RootLayout({
             <OfflineProvider>{children}</OfflineProvider>
           </AuthProvider>
         </SWRConfig>
+        </SerwistProvider>
       </body>
     </html>
   );

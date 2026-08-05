@@ -1,9 +1,16 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { WifiOff, Loader2 } from "lucide-react";
-import { getQueue, dequeueItem } from "../../lib/offlineQueue";
-import { api } from "../../lib/api";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
+import { WifiOff } from "lucide-react";
+import { BackgroundSyncQueueStore } from "serwist";
+import { invalidateApi } from "../../lib/api";
 
 interface OfflineContextType {
   isOnline: boolean;
@@ -20,41 +27,26 @@ const OfflineContext = createContext<OfflineContextType>({
 export function OfflineProvider({ children }: { children: React.ReactNode }) {
   const [isOnline, setIsOnline] = useState(true);
   const [queueSize, setQueueSize] = useState(0);
-  const [syncing, setSyncing] = useState(false);
 
-  const refreshQueue = useCallback(() => {
-    setQueueSize(getQueue().length);
-  }, []);
+  const queueStore = useMemo(
+    () => new BackgroundSyncQueueStore("tara-writes-queue"),
+    [],
+  );
 
-  const processQueue = useCallback(async () => {
-    const queue = getQueue();
-    if (queue.length === 0) return;
-    setSyncing(true);
-    for (const item of queue) {
-      try {
-        await api.post("/sales/", item.payload);
-        dequeueItem(item.id);
-      } catch {
-        // leave in queue — will retry next time we come online
-        break;
-      }
-    }
-    setQueueSize(getQueue().length);
-    setSyncing(false);
-  }, []);
+  const refreshQueue = useCallback(async () => {
+    setQueueSize(await queueStore.size());
+  }, [queueStore]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setIsOnline(navigator.onLine);
-    setQueueSize(getQueue().length);
+    refreshQueue();
 
     function handleOnline() {
-      setIsOnline(true);
-      processQueue();
+      refreshQueue();
     }
     function handleOffline() {
       setIsOnline(false);
-      setQueueSize(getQueue().length);
     }
 
     window.addEventListener("online", handleOnline);
@@ -63,14 +55,29 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [processQueue]);
+  }, [refreshQueue]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator))
+      return;
+    function onMessage(e: MessageEvent) {
+      if (e.data?.type === "tara-queue-synced") {
+        refreshQueue();
+        invalidateApi("/products");
+        invalidateApi("/sales");
+      }
+    }
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () =>
+      navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, [refreshQueue]);
 
   return (
     <OfflineContext.Provider value={{ isOnline, queueSize, refreshQueue }}>
       {children}
 
       {/* Offline banner */}
-      {!isOnline && !syncing && (
+      {!isOnline && (
         <div
           className="fixed top-0 left-0 right-0 z-[200] flex items-center justify-center gap-2 py-2 text-xs font-semibold text-white"
           style={{ background: "var(--warning)" }}
@@ -82,15 +89,6 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Syncing banner */}
-      {syncing && (
-        <div
-          className="fixed top-0 left-0 right-0 z-[200] flex items-center justify-center gap-2 py-2 text-xs font-semibold text-white"
-          style={{ background: "var(--brand)" }}
-        >
-          <Loader2 size={13} className="animate-spin" />
-          Syncing offline sales…
-        </div>
-      )}
     </OfflineContext.Provider>
   );
 }
