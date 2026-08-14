@@ -9,6 +9,7 @@ class ShopRead(SQLModel):
     slug: str
     email: Optional[str] = None
     phone: Optional[str] = None
+    logo_url: Optional[str] = None
     active: bool
     created_at: datetime
 

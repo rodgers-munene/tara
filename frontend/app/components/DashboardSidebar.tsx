@@ -32,11 +32,8 @@ export default function DashboardSidebar({ roleLabel, links, userName, onLogout 
         style={{ background: "var(--sidebar-bg)", borderColor: "var(--sidebar-hover)" }}
       >
         <div className="flex items-center gap-2 flex-1">
-          <div
-            className="flex h-6 w-6 items-center justify-center rounded-md text-white text-xs font-bold"
-            style={{ background: "var(--brand)" }}
-          >
-            T
+          <div className="flex h-6 w-6 items-center justify-center rounded-md overflow-hidden">
+            <img src="/icon-192.png" alt="" className="h-full w-full object-cover" />
           </div>
           <span className="font-semibold text-sm" style={{ color: "var(--sidebar-text)" }}>
             Tara POS
@@ -114,11 +111,8 @@ export default function DashboardSidebar({ roleLabel, links, userName, onLogout 
       >
         {/* Brand */}
         <div className="flex items-center gap-2.5 px-5 h-16 shrink-0">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-white text-sm font-bold"
-            style={{ background: "var(--brand)" }}
-          >
-            T
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden">
+            <img src="/icon-192.png" alt="" className="h-full w-full object-cover" />
           </div>
           <div className="flex flex-col leading-tight">
             <span className="font-semibold text-base" style={{ color: "var(--sidebar-text)" }}>

@@ -56,11 +56,8 @@ function Numpad({ onPress }: { onPress: (key: string) => void }) {
 function BrandHeader({ shopName }: { shopName?: string }) {
   return (
     <div className="flex flex-col items-center mb-8">
-      <div
-        className="flex h-12 w-12 items-center justify-center rounded-2xl text-white text-xl font-bold mb-3 shadow"
-        style={{ background: "var(--brand)" }}
-      >
-        T
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl overflow-hidden mb-3 shadow">
+        <img src="/icon-192.png" alt="Tara" className="h-full w-full object-cover" />
       </div>
       <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>
         {shopName ?? "Tara POS"}

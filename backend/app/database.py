@@ -85,6 +85,8 @@ def run_migrations():
                 "ALTER TABLE saleitem ALTER COLUMN quantity TYPE DOUBLE PRECISION",
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS cash_amount DOUBLE PRECISION",
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS mpesa_amount DOUBLE PRECISION",
+                "ALTER TABLE product ADD COLUMN IF NOT EXISTS image_url VARCHAR",
+                "ALTER TABLE shop ADD COLUMN IF NOT EXISTS logo_url VARCHAR",
             ]
             for stmt in column_migrations:
                 conn.execute(text(stmt))

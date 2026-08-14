@@ -19,14 +19,27 @@ async function proxy(req: NextRequest) {
       method: req.method,
       headers,
       cache: "no-store",
+      // Never auto-follow: undici crashes replaying an ArrayBuffer body
+      // across a redirect, and a followed redirect would otherwise leak
+      // the backend's internal URL straight to the browser.
+      redirect: "manual",
     };
 
     if (req.method !== "GET" && req.method !== "HEAD") {
-      init.body = await req.text();
+      init.body = await req.arrayBuffer();
     }
 
     const upstream = await fetch(url, init);
-    const body = await upstream.text();
+
+    if (upstream.type === "opaqueredirect" || (upstream.status >= 300 && upstream.status < 400)) {
+      console.error("PROXY_UNEXPECTED_REDIRECT", url);
+      return NextResponse.json(
+        { detail: "Server is warming up. Please try again in a few seconds." },
+        { status: 503 }
+      );
+    }
+
+    const body = await upstream.arrayBuffer();
 
     return new NextResponse(body, {
       status: upstream.status,
@@ -34,7 +47,8 @@ async function proxy(req: NextRequest) {
         "content-type": upstream.headers.get("content-type") ?? "application/json",
       },
     });
-  } catch {
+  } catch (e) {
+    console.error("PROXY_ERROR", e);
     return NextResponse.json(
       { detail: "Server is warming up. Please try again in a few seconds." },
       { status: 503 }

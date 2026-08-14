@@ -50,6 +50,8 @@ function ProductFormContent({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [scanOpen, setScanOpen] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(initial?.image_url ?? null);
 
   const isEdit = !!initial;
   const isWeight = pricingMode === "weight";
@@ -78,10 +80,17 @@ function ProductFormContent({
         barcode: barcode.trim() || null,
         category_id: categoryId ? parseInt(categoryId) : null,
       };
+      let productId = initial?.id;
       if (isEdit) {
         await api.patch(`/products/${initial!.id}`, body);
       } else {
-        await api.post("/products/", body);
+        const created = await api.post<Product>("/products/", body);
+        productId = created.id;
+      }
+      if (photo && productId) {
+        const formData = new FormData();
+        formData.append("file", photo);
+        await api.upload(`/products/${productId}/image`, formData);
       }
       onSave();
     } catch (err: unknown) {
@@ -119,6 +128,32 @@ function ProductFormContent({
 
       {/* Fields */}
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
+        <div className="flex justify-center">
+          <label
+            className="flex h-24 w-24 items-center justify-center rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+          >
+            {photoPreview ? (
+              <img src={photoPreview} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <Package size={32} strokeWidth={1.5} style={{ color: "var(--text-3)" }} />
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) {
+                  setPhoto(f);
+                  setPhotoPreview(URL.createObjectURL(f));
+                }
+              }}
+            />
+          </label>
+        </div>
+
         <div>
           <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
             Product name *
@@ -980,13 +1015,17 @@ export default function InventoryPage() {
                     style={{ borderColor: "var(--border)", opacity: p.active ? 1 : 0.5 }}
                   >
                     <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold overflow-hidden"
                       style={{
                         background: cat?.color ? `${cat.color}18` : "var(--brand-light)",
                         color: cat?.color ?? "var(--brand-dark)",
                       }}
                     >
-                      {p.name.charAt(0).toUpperCase()}
+                      {p.image_url ? (
+                        <img src={p.image_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        p.name.charAt(0).toUpperCase()
+                      )}
                     </div>
 
                     <div className="flex-1 min-w-0">

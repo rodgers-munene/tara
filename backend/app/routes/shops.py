@@ -18,7 +18,7 @@ def get_my_shop(
     shop = session.get(Shop, shop_id) if shop_id else None
     if not shop:
         raise HTTPException(status_code=404, detail="Shop not found")
-    return {"id": shop.id, "name": shop.name, "phone": shop.phone}
+    return {"id": shop.id, "name": shop.name, "phone": shop.phone, "logo_url": shop.logo_url}
 
 
 @router.get("/{slug}")

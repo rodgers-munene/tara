@@ -78,11 +78,8 @@ export default function AdminSetupPage() {
         <ArrowLeft size={15} /> Back to sign in
       </a>
 
-      <div
-        className="flex h-14 w-14 items-center justify-center rounded-2xl text-white text-2xl font-bold mb-6 shadow-md"
-        style={{ background: "var(--brand)" }}
-      >
-        T
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl overflow-hidden mb-6 shadow-md">
+        <img src="/icon-192.png" alt="Tara" className="h-full w-full object-cover" />
       </div>
       <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>
         Admin Setup

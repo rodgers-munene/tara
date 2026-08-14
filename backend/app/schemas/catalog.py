@@ -26,6 +26,7 @@ class ProductRead(SQLModel):
     barcode: Optional[str] = None
     category_id: Optional[int] = None
     active: bool
+    image_url: Optional[str] = None
 
 
 class ProductCreate(SQLModel):

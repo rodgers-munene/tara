@@ -24,6 +24,7 @@ class Product(SQLModel, table=True):
     barcode: Optional[str] = Field(default=None, index=True)
     category_id: Optional[int] = Field(default=None, foreign_key="category.id")
     active: bool = Field(default=True)
+    image_url: Optional[str] = Field(default=None)
     shop_id: Optional[int] = Field(default=None, foreign_key="shop.id", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     category: Optional[Category] = Relationship(back_populates="products")

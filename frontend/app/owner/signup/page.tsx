@@ -91,11 +91,8 @@ function SignupForm() {
         className="relative z-10 w-full max-w-xs rounded-3xl p-7 flex flex-col items-center"
         style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1.5px solid var(--border)" }}
       >
-      <div
-        className="flex h-14 w-14 items-center justify-center rounded-2xl text-white text-2xl font-bold mb-6 shadow-md"
-        style={{ background: "var(--brand)" }}
-      >
-        T
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl overflow-hidden mb-6 shadow-md">
+        <img src="/icon-192.png" alt="Tara" className="h-full w-full object-cover" />
       </div>
       <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>
         Create your account

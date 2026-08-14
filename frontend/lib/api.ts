@@ -88,6 +88,7 @@ export interface ShopBrief {
   id: number;
   name: string;
   phone: string | null;
+  logo_url: string | null;
 }
 
 export interface Category {
@@ -109,6 +110,7 @@ export interface Product {
   barcode: string | null;
   category_id: number | null;
   active: boolean;
+  image_url: string | null;
 }
 
 export interface BulkImportResult {

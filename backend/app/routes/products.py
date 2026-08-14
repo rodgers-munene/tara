@@ -9,6 +9,7 @@ from app.database import get_session
 from app.dependencies import get_current_user, require_shop_owner_role
 from app.models import Category, Product
 from app.schemas import BulkImportResult, ProductCreate, ProductRead, ProductUpdate, StockAdjust
+from app import storage
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -348,6 +349,23 @@ def adjust_stock(
     if not product or product.shop_id != current_user.get("shop_id"):
         raise HTTPException(status_code=404, detail="Product not found")
     product.stock = max(0, product.stock + data.delta)
+    session.add(product)
+    session.commit()
+    session.refresh(product)
+    return product
+
+
+@router.post("/{product_id}/image", response_model=ProductRead)
+def upload_product_image(
+    product_id: int,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(require_shop_owner_role),
+):
+    product = session.get(Product, product_id)
+    if not product or product.shop_id != current_user.get("shop_id"):
+        raise HTTPException(status_code=404, detail="Product not found")
+    product.image_url = storage.upload_image(file, f"products/{product.shop_id}")
     session.add(product)
     session.commit()
     session.refresh(product)

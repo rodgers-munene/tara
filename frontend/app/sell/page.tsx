@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Search, X, Plus, Minus, ChevronUp, Loader2, LogOut,
-  Tag, CheckCircle2, Share2, Delete, ScanLine,
+  Tag, CheckCircle2, Share2, Delete, ScanLine, Package,
 } from "lucide-react";
 import NavBar from "../components/NavBar";
 import { useAuth } from "../components/AuthProvider";
@@ -32,11 +32,14 @@ interface PaymentResult {
 function SkeletonTile() {
   return (
     <div
-      className="rounded-xl p-3 flex flex-col gap-3"
+      className="rounded-xl overflow-hidden flex flex-col"
       style={{ border: "1.5px solid var(--border)", minHeight: 88, background: "var(--surface)" }}
     >
-      <div className="skeleton rounded-md" style={{ height: 14, width: "65%" }} />
-      <div className="skeleton rounded-md" style={{ height: 12, width: "40%", marginTop: "auto" }} />
+      <div className="skeleton" style={{ aspectRatio: "1 / 1", maxHeight: 96, width: "100%" }} />
+      <div className="flex flex-col gap-3 p-3">
+        <div className="skeleton rounded-md" style={{ height: 14, width: "65%" }} />
+        <div className="skeleton rounded-md" style={{ height: 12, width: "40%" }} />
+      </div>
     </div>
   );
 }
@@ -79,7 +82,7 @@ function ProductTile({
           handleTap();
         }
       }}
-      className="relative flex flex-col justify-between rounded-xl p-3 text-left transition-all active:scale-95 select-none"
+      className="relative flex flex-col rounded-xl overflow-hidden text-left transition-all active:scale-95 select-none"
       style={{
         background: "var(--surface)",
         border: qty > 0 ? "2px solid var(--brand)" : "1.5px solid var(--border)",
@@ -88,87 +91,100 @@ function ProductTile({
         cursor: outOfStock ? "default" : "pointer",
       }}
     >
-      {/* Category color dot */}
-      {catColor && (
-        <span
-          className="absolute top-2.5 left-2.5 h-2 w-2 rounded-full"
-          style={{ background: catColor }}
-        />
-      )}
+      {/* Photo */}
+      <div className="relative w-full shrink-0" style={{ aspectRatio: "1 / 1", maxHeight: 96, background: "var(--surface-2)" }}>
+        {product.image_url ? (
+          <img src={product.image_url} alt="" className="h-full w-full object-contain" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Package size={22} strokeWidth={1.5} style={{ color: "var(--text-3)" }} />
+          </div>
+        )}
 
-      {/* In-cart stepper — subtle, only appears once an item has been added */}
-      {qty > 0 && !isWeight && (
-        <div
-          className="absolute top-2 right-2 flex items-center gap-1"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={(e) => { e.stopPropagation(); onSubtract(); }}
-            aria-label="Remove one"
-            className="flex h-4.5 w-4.5 items-center justify-center rounded-full transition-opacity active:scale-90"
-            style={{ background: "var(--danger-light)", color: "var(--danger)" }}
-          >
-            <Minus size={10} strokeWidth={3} />
-          </button>
+        {/* Category color dot */}
+        {catColor && (
           <span
-            className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold text-white"
-            style={{ background: "var(--brand)" }}
-          >
-            {qty}
-          </span>
-          <button
-            onClick={(e) => { e.stopPropagation(); if (!outOfStock) onAdd(); }}
-            disabled={outOfStock}
-            aria-label="Add one"
-            className="flex h-4.5 w-4.5 items-center justify-center rounded-full transition-opacity active:scale-90 disabled:opacity-30"
-            style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
-          >
-            <Plus size={10} strokeWidth={3} />
-          </button>
-        </div>
-      )}
+            className="absolute top-1.5 left-1.5 h-2 w-2 rounded-full"
+            style={{ background: catColor, boxShadow: "0 0 0 2px var(--surface)" }}
+          />
+        )}
 
-      {/* Weight-mode: a single tap-to-edit chip showing the kg currently in cart */}
-      {qty > 0 && isWeight && (
-        <div
-          className="absolute top-2 right-2"
-          onClick={(e) => { e.stopPropagation(); onOpenWeight(); }}
-        >
-          <span
-            className="flex h-5 items-center justify-center rounded-full px-2 text-[11px] font-bold text-white"
-            style={{ background: "var(--brand)" }}
+        {/* In-cart stepper — subtle, only appears once an item has been added */}
+        {qty > 0 && !isWeight && (
+          <div
+            className="absolute top-1.5 right-1.5 flex items-center gap-1"
+            onClick={(e) => e.stopPropagation()}
           >
-            {qty.toFixed(3)} kg
-          </span>
-        </div>
-      )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onSubtract(); }}
+              aria-label="Remove one"
+              className="flex h-4.5 w-4.5 items-center justify-center rounded-full transition-opacity active:scale-90"
+              style={{ background: "var(--danger-light)", color: "var(--danger)" }}
+            >
+              <Minus size={10} strokeWidth={3} />
+            </button>
+            <span
+              className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold text-white"
+              style={{ background: "var(--brand)" }}
+            >
+              {qty}
+            </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); if (!outOfStock) onAdd(); }}
+              disabled={outOfStock}
+              aria-label="Add one"
+              className="flex h-4.5 w-4.5 items-center justify-center rounded-full transition-opacity active:scale-90 disabled:opacity-30"
+              style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
+            >
+              <Plus size={10} strokeWidth={3} />
+            </button>
+          </div>
+        )}
 
-      <div style={{ paddingLeft: catColor ? 12 : 0, paddingRight: qty > 0 ? 64 : 24 }}>
-        <span className="text-sm font-semibold leading-snug block" style={{ color: "var(--text)" }}>
-          {product.name}
-        </span>
-        {!isWeight && product.unit_label && (
-          <span className="text-[10px] block mt-0.5" style={{ color: "var(--text-3)" }}>
-            {product.unit_label}
-          </span>
+        {/* Weight-mode: a single tap-to-edit chip showing the kg currently in cart */}
+        {qty > 0 && isWeight && (
+          <div
+            className="absolute top-1.5 right-1.5"
+            onClick={(e) => { e.stopPropagation(); onOpenWeight(); }}
+          >
+            <span
+              className="flex h-5 items-center justify-center rounded-full px-2 text-[11px] font-bold text-white"
+              style={{ background: "var(--brand)" }}
+            >
+              {qty.toFixed(3)} kg
+            </span>
+          </div>
         )}
       </div>
 
-      <div className="flex items-end justify-between mt-2">
-        <span
-          className="text-[13px] font-bold"
-          style={{ color: outOfStock ? "var(--text-3)" : "var(--brand-dark)" }}
-        >
-          {outOfStock ? "Out of stock" : isWeight ? `${fmtKES(product.price)}/kg` : fmtKES(product.price)}
-        </span>
-        {!outOfStock && product.track_stock && (
-          <span
-            className="text-[10px] font-semibold"
-            style={{ color: lowStock ? "var(--warning)" : "var(--text-3)" }}
-          >
-            {lowStock ? `${product.stock} left` : `${product.stock}`}
+      <div className="flex flex-col justify-between flex-1 p-2.5">
+        <div>
+          <span className="text-sm font-semibold leading-snug block" style={{ color: "var(--text)" }}>
+            {product.name}
           </span>
-        )}
+          {!isWeight && product.unit_label && (
+            <span className="text-[10px] block mt-0.5" style={{ color: "var(--text-3)" }}>
+              {product.unit_label}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-end justify-between mt-2">
+          <span
+            className="text-[13px] font-bold"
+            style={{ color: outOfStock ? "var(--text-3)" : "var(--brand-dark)" }}
+          >
+            {outOfStock ? "Out of stock" : isWeight ? `${fmtKES(product.price)}/kg` : fmtKES(product.price)}
+          </span>
+          {!outOfStock && product.track_stock && (
+            <span
+              className="text-[10px] font-semibold"
+              style={{ color: lowStock ? "var(--warning)" : "var(--text-3)" }}
+            >
+              {lowStock ? `${product.stock} left` : `${product.stock}`}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1076,6 +1092,9 @@ function ReceiptPreview({
           )}
         </div>
 
+        {shop?.logo_url && (
+          <img src={shop.logo_url} alt="" className="h-10 w-10 mx-auto rounded-lg object-cover" />
+        )}
         <p className="text-xs text-center font-semibold" style={{ color: "var(--text-2)" }}>
           {shop?.name ?? "Tara POS"}{shop?.phone ? ` · ${shop.phone}` : ""}
         </p>

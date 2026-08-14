@@ -45,6 +45,7 @@ systemctl enable --now certbot-renew.timer
 if [ ! -d "/etc/letsencrypt/live/api.tara.ekshop.store" ]; then
   cp "$APP_DIR/infra/nginx/tara.conf" /etc/nginx/conf.d/tara.conf
 fi
+cp "$APP_DIR/infra/nginx/uploads.conf" /etc/nginx/conf.d/uploads.conf
 nginx -t && systemctl reload nginx 2>/dev/null || systemctl restart nginx
 
 

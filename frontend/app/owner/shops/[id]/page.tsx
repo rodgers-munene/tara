@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useOwnerAuth } from "../../../components/OwnerAuthProvider";
 import {
-  ownerRequest, useOwnerApi, jumpToSell, ShopDetail, ShopAnalytics, daysLeft, subscriptionLabel,
+  ownerRequest, ownerUpload, useOwnerApi, jumpToSell, ShopDetail, ShopAnalytics, daysLeft, subscriptionLabel,
   UpgradeModal, StaffPanel, BarChart,
 } from "../../shared";
 
@@ -143,6 +143,53 @@ function SlugEditor({
                 : "3-30 chars: lowercase letters, numbers, hyphens"}
       </p>
     </div>
+  );
+}
+
+// ── Editable shop logo ────────────────────────────────────────────────────
+
+function LogoUploader({
+  shop,
+  token,
+  onSaved,
+}: {
+  shop: ShopDetail;
+  token: string;
+  onSaved: (logoUrl: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+
+  async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await ownerUpload<{ logo_url: string }>(`/owner/shops/${shop.id}/logo`, token, formData);
+      onSaved(res.logo_url);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <label
+      className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold cursor-pointer overflow-hidden"
+      style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
+    >
+      {shop.logo_url ? (
+        <img src={shop.logo_url} alt="" className="h-full w-full object-cover" />
+      ) : (
+        shop.name.charAt(0).toUpperCase()
+      )}
+      {uploading && (
+        <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
+          <Loader2 size={20} className="animate-spin text-white" />
+        </div>
+      )}
+      <input type="file" accept="image/*" hidden onChange={handleChange} />
+    </label>
   );
 }
 
@@ -280,12 +327,24 @@ export default function ShopDetailsPage() {
           style={{ background: "var(--surface)", border: "1.5px solid var(--border)" }}
         >
           <div className="flex items-start gap-4 flex-wrap">
-            <div
-              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold"
-              style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
-            >
-              {shop.name.charAt(0).toUpperCase()}
-            </div>
+            {token ? (
+              <LogoUploader
+                shop={shop}
+                token={token}
+                onSaved={(logo_url) => mutateShop((prev) => (prev ? { ...prev, logo_url } : prev), { revalidate: false })}
+              />
+            ) : (
+              <div
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold overflow-hidden"
+                style={{ background: "var(--brand-light)", color: "var(--brand-dark)" }}
+              >
+                {shop.logo_url ? (
+                  <img src={shop.logo_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  shop.name.charAt(0).toUpperCase()
+                )}
+              </div>
+            )}
 
             <div className="flex-1 min-w-0">
               <p className="font-bold text-xl leading-tight truncate" style={{ color: "var(--text)" }} title={shop.name}>

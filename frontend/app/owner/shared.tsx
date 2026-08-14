@@ -23,6 +23,19 @@ export async function ownerRequest<T>(path: string, token: string, init?: Reques
   return res.json();
 }
 
+export async function ownerUpload<T>(path: string, token: string, formData: FormData): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.detail ?? `Request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 // Cached GET for owner pages, gated on the auth token being ready. Shares the
 // SWR cache across owner pages so revisiting a shop/dashboard is instant.
 export function useOwnerApi<T>(path: string | null, token: string | null) {
@@ -53,6 +66,7 @@ export interface Shop {
   id: number;
   name: string;
   slug: string;
+  logo_url: string | null;
   plan: string;
   billing_cycle: string | null;
   active: boolean;

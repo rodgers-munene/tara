@@ -5,7 +5,7 @@ import bcrypt
 import jwt
 from datetime import date, datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import require_owner
@@ -13,6 +13,7 @@ from app.email import send_email
 from app.models import Owner, PasswordReset, EmailVerification, Shop, Staff, Sale, Product
 from app.notifications import send_verification_email
 from app.pricing import max_shops_for, max_staff_for, has_feature
+from app import storage
 from app.schemas import (
     OwnerCreate, OwnerLogin, OwnerSelfUpdate,
     ForgotPasswordRequest, ResetPasswordRequest,
@@ -301,6 +302,7 @@ def list_shops(
             "id": shop.id,
             "name": shop.name,
             "slug": shop.slug,
+            "logo_url": shop.logo_url,
             **_subscription_fields(owner),
             "active": shop.active,
             "staff_count": len(staff_list),
@@ -372,6 +374,7 @@ def get_shop(
         "slug": shop.slug,
         "email": shop.email,
         "phone": shop.phone,
+        "logo_url": shop.logo_url,
         **_subscription_fields(owner),
         "active": shop.active,
         "created_at": shop.created_at.isoformat(),
@@ -534,6 +537,7 @@ def create_shop(
         "id": shop.id,
         "name": shop.name,
         "slug": shop.slug,
+        "logo_url": shop.logo_url,
         **_subscription_fields(owner),
         "active": shop.active,
         "staff_count": 1,
@@ -581,6 +585,24 @@ def update_shop(
     session.commit()
     session.refresh(shop)
     return shop
+
+
+@router.post("/shops/{shop_id}/logo")
+def upload_shop_logo(
+    shop_id: int,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    payload: dict = Depends(require_owner),
+):
+    owner_id = int(payload["sub"])
+    shop = session.get(Shop, shop_id)
+    if not shop or shop.owner_id != owner_id:
+        raise HTTPException(status_code=404, detail="Shop not found")
+    shop.logo_url = storage.upload_image(file, f"shops/{shop.id}")
+    session.add(shop)
+    session.commit()
+    session.refresh(shop)
+    return {"logo_url": shop.logo_url}
 
 
 @router.post("/shops/{shop_id}/sell-token")

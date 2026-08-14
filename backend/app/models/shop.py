@@ -10,6 +10,7 @@ class Shop(SQLModel, table=True):
     slug: str = Field(unique=True, index=True)
     email: Optional[str] = Field(default=None)
     phone: Optional[str] = Field(default=None)
+    logo_url: Optional[str] = Field(default=None)
     active: bool = Field(default=True)
     owner_id: Optional[int] = Field(default=None, foreign_key="owner.id", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
